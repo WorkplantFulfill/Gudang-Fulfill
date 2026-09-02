@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Barcode SKU Warehouse</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--ink:#111;--ink2:#444;--muted:#888;--line:#e0e0e0;--bg:#f5f5f5;
+  --green:#0d5c3a;--green-l:#e6f4ee;--line2:#c8d4d0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+button,input,select{font-family:inherit}
+
+/* topbar */
+.topbar{background:#111;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:50}
+.topbar h1{font-size:16px;font-weight:700}
+.topbar .info{font-size:12px;color:rgba(255,255,255,.5)}
+.tbacts{display:flex;gap:8px;flex-wrap:wrap}
+.tb-btn{padding:7px 14px;border:none;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;transition:opacity .13s}
+.tb-btn:hover{opacity:.85}
+.btn-wh{background:#fff;color:#111}
+.btn-gr{background:#0d5c3a;color:#fff}
+
+/* filter */
+.filterbar{background:#fff;border-bottom:1px solid var(--line);padding:12px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.filterbar input{padding:8px 12px;border:1.5px solid var(--line);border-radius:6px;font-size:13.5px;width:260px;outline:none}
+.filterbar input:focus{border-color:#0d5c3a}
+.cat-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.cat-tab{padding:6px 13px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;border:1.5px solid var(--line);background:#fff;color:var(--ink2);transition:all .12s}
+.cat-tab.on{color:#fff;border-color:transparent}
+.ct-all.on{background:#111}.ct-0.on{background:#0d5c3a}.ct-1.on{background:#1a6b5a}
+.ct-2.on{background:#1a3d72}.ct-3.on{background:#7a4800}.ct-4.on{background:#4a1d72}
+.sel-count{font-size:12px;color:var(--muted);margin-left:4px;white-space:nowrap}
+
+/* main */
+.main{padding:18px 20px;max-width:1400px;margin:0 auto}
+.kat-section{margin-bottom:28px}
+.kat-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+.kat-badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;color:#fff}
+.kat-count{font-size:12px;color:var(--muted);font-weight:500}
+.sku-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+
+/* SKU card */
+.sku-card{background:#fff;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;transition:box-shadow .13s,border-color .13s;cursor:pointer;position:relative}
+.sku-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);border-color:#bbb}
+.sku-card.selected{border-color:#0d5c3a;box-shadow:0 0 0 2.5px rgba(13,92,58,.18)}
+.sku-card .chk{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;border:2px solid var(--line);background:#fff;display:grid;place-items:center;font-size:12px;transition:all .13s}
+.sku-card.selected .chk{background:#0d5c3a;border-color:#0d5c3a;color:#fff}
+.card-info{padding:10px 12px 8px}
+.card-nama{font-size:12px;font-weight:600;color:var(--ink);line-height:1.3;margin-bottom:3px}
+.card-sku{font-family:'Courier New',monospace;font-size:10.5px;color:var(--muted);word-break:break-all}
+/* QR display di kartu */
+.card-qr-wrap{padding:10px;border-top:1px solid var(--line);background:#fafafa;display:flex;flex-direction:column;align-items:center;gap:6px}
+.card-qr-wrap .qr-lbl{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.card-qr-wrap canvas,.card-qr-wrap img{border-radius:4px;display:block}
+.card-bar-wrap{padding:6px 10px 8px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.card-bar-wrap .bar-lbl{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.card-bar-wrap svg{max-width:100%;height:auto}
+.card-acts{display:flex;border-top:1px solid var(--line)}
+.card-act{flex:1;padding:8px 4px;font-size:11.5px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--ink2);transition:background .1s;display:flex;align-items:center;justify-content:center;gap:4px}
+.card-act:first-child{border-right:1px solid var(--line)}
+.card-act:hover{background:var(--bg)}
+
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
+
+/* print panel */
+.print-panel{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid #0d5c3a;padding:12px 20px;display:none;align-items:center;justify-content:space-between;gap:12px;z-index:40;box-shadow:0 -4px 20px rgba(0,0,0,.12);flex-wrap:wrap}
+.print-panel.show{display:flex}
+.pp-info{font-size:14px;font-weight:600}
+.pp-info span{color:#0d5c3a}
+.pp-acts{display:flex;gap:8px}
+
+/* toast */
+.toast{position:fixed;bottom:70px;right:20px;background:#111;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .2s;z-index:999;pointer-events:none}
+.toast.on{opacity:1;transform:translateY(0)}
+
+/* print sheet hidden */
+.print-sheet{display:none}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:14px;padding:28px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-box h3{font-size:17px;font-weight:700;margin-bottom:4px;color:#111}
+.modal-box p{font-size:13px;color:#666;margin-bottom:20px}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.field label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#555;margin-bottom:5px}
+.field input,.field select{width:100%;padding:9px 11px;border:1.5px solid #ddd;border-radius:7px;font-size:15px;font-weight:600;text-align:center;outline:none}
+.field select{font-size:13px;text-align:left}
+.tips-box{background:#f5f5f5;border-radius:8px;padding:12px;margin-bottom:18px;font-size:12px;color:#555;line-height:1.5}
+.modal-acts{display:flex;gap:10px;justify-content:flex-end}
+.btn-cancel{padding:10px 20px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-weight:600;background:#fff;cursor:pointer;color:#444}
+.btn-print{padding:10px 22px;border:none;border-radius:8px;font-size:14px;font-weight:600;background:#0d5c3a;color:#fff;cursor:pointer}
+
+@media print{
+  /* dikontrol JS */
+}
+
+/* modal tambah SKU */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal-box{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-box h3{font-size:16px;font-weight:700;margin-bottom:16px;color:#111}
+.mf{margin-bottom:14px}
+.mf label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#555;margin-bottom:5px}
+.mf input,.mf select{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;outline:none;transition:border-color .15s}
+.mf input:focus,.mf select:focus{border-color:#0d5c3a}
+.mf-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-acts{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.m-cancel{padding:10px 18px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-weight:600;background:#fff;cursor:pointer;color:#444}
+.m-save{padding:10px 22px;border:none;border-radius:8px;font-size:14px;font-weight:600;background:#0d5c3a;color:#fff;cursor:pointer}
+.m-save:hover{background:#0a4a2f}
+.new-badge{display:inline-block;font-size:9px;font-weight:700;background:#0d5c3a;color:#fff;padding:2px 6px;border-radius:99px;vertical-align:middle;margin-left:5px;letter-spacing:.04em}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Barcode SKU Warehouse</h1>
+    <div class="info" id="totalInfo">Memuat data...</div>
+  </div>
+  <div class="tbacts">
+    <button class="tb-btn btn-wh" onclick="selectAll()">Pilih semua terfilter</button>
+    <button class="tb-btn btn-wh" onclick="clearSel()">Hapus pilihan</button>
+    <button class="tb-btn btn-gr" onclick="printSelected()">🖨 Print label terpilih</button>
+    <button class="tb-btn" style="background:#1a6b5a;color:#fff" onclick="openAddSKU()">+ Tambah SKU Baru</button>
+  </div>
+</div>
+
+<div class="filterbar">
+  <input id="searchBox" placeholder="Cari nama produk atau SKU..." oninput="applyFilter()">
+  <div class="cat-tabs" id="catTabs"></div>
+  <span class="sel-count" id="selCount"></span>
+</div>
+
+<div class="main" id="mainContent"></div>
+
+<div class="print-panel" id="printPanel">
+  <div class="pp-info"><span id="ppCount">0</span> label dipilih — siap print QR</div>
+  <div class="pp-acts">
+    <button class="tb-btn btn-wh" onclick="clearSel()" style="border:1.5px solid #ddd">Batal</button>
+    <button class="tb-btn btn-gr" onclick="printSelected()">🖨 Print QR label</button>
+  </div>
+</div>
+
+<!-- Modal pengaturan label -->
+<div class="modal-overlay" id="printModal">
+  <div class="modal-box">
+    <h3>Pengaturan Label QR</h3>
+    <p id="pmDesc">0 label akan dicetak</p>
+    <div class="field-grid">
+      <div class="field">
+        <label>Lebar label (mm)</label>
+        <input type="number" id="lblW" value="40" min="20" max="120">
+      </div>
+      <div class="field">
+        <label>Tinggi label (mm)</label>
+        <input type="number" id="lblH" value="40" min="20" max="120">
+      </div>
+      <div class="field">
+        <label>Copy tiap label</label>
+        <input type="number" id="lblQty" value="1" min="1" max="50">
+      </div>
+      <div class="field">
+        <label>Preset ukuran</label>
+        <select id="lblPreset" onchange="applyPreset()">
+          <option value="">-- Pilih preset --</option>
+          <option value="40,40">40×40mm</option>
+          <option value="50,50">50×50mm</option>
+          <option value="30,30">30×30mm (mini)</option>
+          <option value="60,60">60×60mm</option>
+          <option value="80,80">80×80mm</option>
+          <option value="58,40">58×40mm (thermal 58mm)</option>
+          <option value="100,100">100×100mm</option>
+        </select>
+      </div>
+    </div>
+    <div class="tips-box">
+      <strong>Tips printer thermal:</strong> Set ukuran kertas di driver printer = ukuran label di atas.
+      Di dialog print Chrome pilih <em>Scale: 100%</em>, matikan <em>Headers &amp; footers</em>.
+    </div>
+    <div class="modal-acts">
+      <button class="btn-cancel" onclick="closePrintModal()">Batal</button>
+      <button class="btn-print" onclick="executePrint()">🖨 Print sekarang</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="print-sheet" id="printSheet"></div>
+
+
+<!-- Modal Tambah SKU Baru -->
+<div class="modal-bg" id="addSkuModal">
+  <div class="modal-box">
+    <h3>Tambah SKU Baru <span class="new-badge">NEW</span></h3>
+    <div class="mf">
+      <label>Nama Produk</label>
+      <input id="newSkuNama" placeholder="contoh: Aglo Nutrients 250ml" oninput="autoFillSkuCode()">
+    </div>
+    <div class="mf">
+      <label>Kode SKU</label>
+      <input id="newSkuKode" placeholder="contoh: AgloNutrients_250ml">
+    </div>
+    <div class="mf-row">
+      <div class="mf">
+        <label>Kategori</label>
+        <select id="newSkuKat">
+          <option value="Perawatan Tanaman">Perawatan Tanaman</option>
+          <option value="Media Satuan">Media Satuan</option>
+          <option value="Media Mix">Media Mix</option>
+          <option value="Peralatan Berkebun">Peralatan Berkebun</option>
+          <option value="Pot & Dekorasi">Pot &amp; Dekorasi</option>
+          <option value="Lainnya">Lainnya</option>
+        </select>
+      </div>
+      <div class="mf">
+        <label>Satuan</label>
+        <input id="newSkuUnit" placeholder="pcs / botol / pack" value="pcs">
+      </div>
+    </div>
+    <div class="modal-acts">
+      <button class="m-cancel" onclick="closeAddSKU()">Batal</button>
+      <button class="m-save" onclick="confirmAddSKU()">Simpan &amp; Generate Barcode</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var SKU_DATA = [{"kategori": "Perawatan Tanaman", "nama": "Aglo Nutriens 500ml", "sku": "AgloNutrients_500ml"}, {"kategori": "Perawatan Tanaman", "nama": "Bio Tricho Powder 150ml", "sku": "TrichoPowder_150ml"}, {"kategori": "Perawatan Tanaman", "nama": "Bloom booster 60ml", "sku": "BloomBooster_60ml"}, {"kategori": "Perawatan Tanaman", "nama": "Eco Fertile 250ml", "sku": "EcoFertile_250ml"}, {"kategori": "Perawatan Tanaman", "nama": "Eco Fertile 500ml", "sku": "EcoFertile_500ml"}, {"kategori": "Perawatan Tanaman", "nama": "Flower Nutriens 500ml", "sku": "FlowerNutrients_500ml"}, {"kategori": "Perawatan Tanaman", "nama": "Fungisida Powder 150ml", "sku": "FungiPowder_150ml"}, {"kategori": "Perawatan Tanaman", "nama": "Growth Booster 60ml", "sku": "GrowthBooster_60ml"}, {"kategori": "Perawatan Tanaman", "nama": "Magic Leaf 250ml", "sku": "MagicLeaf_250ml"}, {"kategori": "Perawatan Tanaman", "nama": "Neem Oil 500ml", "sku": "NeemOil_500ml"}, {"kategori": "Perawatan Tanaman", "nama": "Neem Oil Reffil 100ml", "sku": "NeemOil_Refill_100ml"}, {"kategori": "Perawatan Tanaman", "nama": "Orchid Food 500ml", "sku": "OrchidFood_500ml"}, {"kategori": "Perawatan Tanaman", "nama": "Pestisida Nabati 100ml", "sku": "PestisidaNabati_100ml"}, {"kategori": "Perawatan Tanaman", "nama": "Plant Cure 500ml", "sku": "PlantCure_500ml"}, {"kategori": "Perawatan Tanaman", "nama": "Plant Nutrients (Refill) 100ml", "sku": "PlantNutrients_Refill_100ml"}, {"kategori": "Perawatan Tanaman", "nama": "Plant Nutrients 500ml", "sku": "PlantNutrients_500ml"}, {"kategori": "Perawatan Tanaman", "nama": "Root Booster 250ml", "sku": "RootBooster_250ml"}, {"kategori": "Perawatan Tanaman", "nama": "Root Booster 60ml", "sku": "RootBooster_60ml"}, {"kategori": "Perawatan Tanaman", "nama": "Vitamin B1 100ml", "sku": "VitaminB1_100ml"}, {"kategori": "Media Satuan", "nama": "Akadama 1L - Size M", "sku": "Akadama_M_1L"}, {"kategori": "Media Satuan", "nama": "Akadama 1L - Size S", "sku": "Akadama_S_1L"}, {"kategori": "Media Satuan", "nama": "Akadama 1L - Size SS", "sku": "Akadama_SS_1L"}, {"kategori": "Media Satuan", "nama": "Akar Bambu Besar - 2,5L", "sku": "AkarBambu_Besar_2,5L"}, {"kategori": "Media Satuan", "nama": "Akar Bambu Kecil - 2,5L", "sku": "AkarBambu_Kecil_2,5L"}, {"kategori": "Media Satuan", "nama": "Andam Fermen 2,5L", "sku": "AndamFermentasi_2,5L"}, {"kategori": "Media Satuan", "nama": "Andam Fermentasi 5L", "sku": "AndamFermentasi_5L"}, {"kategori": "Media Satuan", "nama": "Andam Super / Batang 2,5L", "sku": "AndamSuper_2,5L"}, {"kategori": "Media Satuan", "nama": "Andam Super 5L", "sku": "AndamSuper_5L"}, {"kategori": "Media Satuan", "nama": "Arang Kayu Cacah 1 L", "sku": "ArangKayu_1L"}, {"kategori": "Media Satuan", "nama": "Arang Kayu Cacah 2,5 L", "sku": "ArangKayu_2,5L"}, {"kategori": "Media Satuan", "nama": "Carbon Aktif 1L", "sku": "CarbonAktif_1L"}, {"kategori": "Media Satuan", "nama": "CharcoalPowder 100ml", "sku": "CharcoalPowder_100ml"}, {"kategori": "Media Satuan", "nama": "CharcoalPowder 140ml", "sku": "CharcoalPowder_140ml"}, {"kategori": "Media Satuan", "nama": "Coco Block 1kg", "sku": "CocoBlock_1kg"}, {"kategori": "Media Satuan", "nama": "Coco Block 600gram", "sku": "CocoBlock_600g"}, {"kategori": "Media Satuan", "nama": "Coco Fiber 2,5L", "sku": "CocoFiber_2,5L"}, {"kategori": "Media Satuan", "nama": "Coco Fiber 5L", "sku": "CocoFiber_5L"}, {"kategori": "Media Satuan", "nama": "Coco Husk - Besar", "sku": "CocoHusk_Besar_5L"}, {"kategori": "Media Satuan", "nama": "Coco Husk - Kecil", "sku": "CocoHusk_Kecil_5L"}, {"kategori": "Media Satuan", "nama": "Coco Husk - Sedang", "sku": "CocoHusk_Sedang_5L"}, {"kategori": "Media Satuan", "nama": "Coco husk 5 Liter Mix Halus", "sku": "CocoHusk_Mix_Halus_5L"}, {"kategori": "Media Satuan", "nama": "Coco Husk 5 Liter Mix Kasar", "sku": "CocoHusk_Mix_Kasar_5L"}, {"kategori": "Media Satuan", "nama": "CocoHusk Besar 2,5L", "sku": "CocoHusk_Besar_2,5L"}, {"kategori": "Media Satuan", "nama": "CocoHusk Kecil 2,5L", "sku": "CocoHusk_Kecil_2,5L"}, {"kategori": "Media Satuan", "nama": "CocoHusk Mix_Halus 2,5L", "sku": "CocoHusk_Mix_Halus_2,5L"}, {"kategori": "Media Satuan", "nama": "CocoHusk Mix_Kasar 2,5L", "sku": "CocoHusk_Mix_Kasar_2,5L"}, {"kategori": "Media Satuan", "nama": "CocoHusk Sedang 2,5L", "sku": "CocoHusk_Sedang_2,5L"}, {"kategori": "Media Satuan", "nama": "Cocopeat 2,5L", "sku": "Cocopeat_2,5L"}, {"kategori": "Media Satuan", "nama": "Cocopeat 5L", "sku": "Cocopeat_5L"}, {"kategori": "Media Satuan", "nama": "Cocopeat Fermentasi 2,5L", "sku": "CocopeatFermentasi_2,5L"}, {"kategori": "Media Satuan", "nama": "Cocopeat Fermentasi 5L", "sku": "CocopeatFermentasi_5L"}, {"kategori": "Media Satuan", "nama": "Daun Bambu Fermen 2,5L", "sku": "DaunBambuFermentasi_2,5L"}, {"kategori": "Media Satuan", "nama": "Daun Bambu Fermentasi 5L", "sku": "DaunBambuFermentasi_5L"}, {"kategori": "Media Satuan", "nama": "Kapur Dolomit 1 Liter", "sku": "Dolomit_1L"}, {"kategori": "Media Satuan", "nama": "Hidrogel 100g Mix", "sku": "Hidrogel_Mix_100g"}, {"kategori": "Media Satuan", "nama": "Hidrogel 100g Transparan", "sku": "Hidrogel_Transparan_100g"}, {"kategori": "Media Satuan", "nama": "Hidrogel 10g Mix", "sku": "Hidrogel_Mix_10g"}, {"kategori": "Media Satuan", "nama": "Hidrogel 10g Transparan", "sku": "Hidrogel_Transparan_10g"}, {"kategori": "Media Satuan", "nama": "Hidrogel 50g Mix", "sku": "Hidrogel_Mix_50g"}, {"kategori": "Media Satuan", "nama": "Hidrogel 50g Transparan", "sku": "Hidrogel_Transparan_50g"}, {"kategori": "Media Satuan", "nama": "Hidroton 1L", "sku": "Hidroton_1L"}, {"kategori": "Media Satuan", "nama": "Hidroton 2,5L", "sku": "Hidroton_2,5L"}, {"kategori": "Media Satuan", "nama": "Hidroton 5L", "sku": "Hidroton_5L"}, {"kategori": "Media Satuan", "nama": "Hidroton Rainbow 1Kg", "sku": "Hidroton_Rainbow_1kg"}, {"kategori": "Media Satuan", "nama": "Hidroton Rainbow 500 gr", "sku": "Hidroton_Rainbow_500g"}, {"kategori": "Media Satuan", "nama": "Humus Mahoni 2,5L Fermentasi", "sku": "HumusMahoni_Fermentasi_2,5L"}, {"kategori": "Media Satuan", "nama": "Humus Mahoni 2,5L Nonfermentasi", "sku": "HumusMahoni_NonFermentasi_2,5L"}, {"kategori": "Media Satuan", "nama": "Humus Mahoni 5L Fermentasi", "sku": "HumusMahoni_Fermentasi_5L"}, {"kategori": "Media Satuan", "nama": "Humus Mahoni 5L Nonfermentasi", "sku": "HumusMahoni_NonFermentasi_5L"}, {"kategori": "Media Satuan", "nama": "Insektisida - 100g", "sku": "Insektisida_Furadan_100g"}, {"kategori": "Media Satuan", "nama": "Insektisida - 50g", "sku": "Insektisida_Furadan_50g"}, {"kategori": "Media Satuan", "nama": "Kaliandra 1L", "sku": "Kaliandra_1L"}, {"kategori": "Media Satuan", "nama": "Kaliandra 2,5L", "sku": "Kaliandra_2,5L"}, {"kategori": "Media Satuan", "nama": "Kanuma 1L - Size M", "sku": "Kanuma_M_1L"}, {"kategori": "Media Satuan", "nama": "Kanuma 1L - Size SS", "sku": "Kanuma_SS_1L"}, {"kategori": "Media Satuan", "nama": "Keiseki 1L - Size M", "sku": "Keiseki_M_1L"}, {"kategori": "Media Satuan", "nama": "Keiseki 1L - Size S", "sku": "Keiseki_S_1L"}, {"kategori": "Media Satuan", "nama": "Kokudo 1L", "sku": "Kokudo_1L"}, {"kategori": "Media Satuan", "nama": "Lava Rock besar 1 Liter", "sku": "LavaRock_Red_Besar_1L"}, {"kategori": "Media Satuan", "nama": "Lava Rock besar 5 Liter", "sku": "LavaRock_Red_Besar_5L"}, {"kategori": "Media Satuan", "nama": "Lava Rock Kecil 1 Liter", "sku": "LavaRock_Red_Kecil_1L"}, {"kategori": "Media Satuan", "nama": "Lava Rock Kecil 5 Liter", "sku": "LavaRock_Red_Kecil_5L"}, {"kategori": "Media Satuan", "nama": "Living Moss Hidup 250g", "sku": "LivingMoss_250g"}, {"kategori": "Media Satuan", "nama": "Living Moss Hidup 500g", "sku": "LivingMoss_500g"}, {"kategori": "Media Satuan", "nama": "Moss Hitam 1L", "sku": "MossHitam_1L"}, {"kategori": "Media Satuan", "nama": "Moss Hitam 2,5L", "sku": "MossHitam_2,5L"}, {"kategori": "Media Satuan", "nama": "Moss hitam/akar kadaka 5L", "sku": "MossHitam_5L"}, {"kategori": "Media Satuan", "nama": "Pakis Cacah Kecil 1Liter", "sku": "PakisCacah_Kecil_1L"}, {"kategori": "Media Satuan", "nama": "Pakis Cacah Kecil 2,5Liter", "sku": "PakisCacah_Kecil_2,5L"}, {"kategori": "Media Satuan", "nama": "Pakis Cacah Sedang 1Liter", "sku": "PakisCacah_Sedang_1L"}, {"kategori": "Media Satuan", "nama": "Pakis Cacah Sedang 2,5Liter", "sku": "PakisCacah_Sedang_2,5L"}, {"kategori": "Media Satuan", "nama": "Pakis Chip Besar 2,5Liter", "sku": "PakisChip_Besar_2,5L"}, {"kategori": "Media Satuan", "nama": "Pakis Chip Kecil 2,5Liter", "sku": "PakisChip_Kecil_2,5L"}, {"kategori": "Media Satuan", "nama": "Pakis Chip Sedang 2,5Liter", "sku": "PakisChip_Sedang_2,5L"}, {"kategori": "Media Satuan", "nama": "Pasir Silika Putih 1kg", "sku": "PasirSilica_Putih_1kg"}, {"kategori": "Media Satuan", "nama": "Pasmal Hitam halus", "sku": "Pasmal_Halus_1L"}, {"kategori": "Media Satuan", "nama": "Pasmal Hitam kasar", "sku": "Pasmal_Kasar_1L"}, {"kategori": "Media Satuan", "nama": "Peat moss base substrate 1L", "sku": "PeatMoss_Substrate_1L"}, {"kategori": "Media Satuan", "nama": "Peat Moss base Substrate 2,5L", "sku": "PeatMoss_Substrate_2,5L"}, {"kategori": "Media Satuan", "nama": "Peat moss TS2 1L", "sku": "PeatMoss_TS2_1L"}, {"kategori": "Media Satuan", "nama": "Peat Moss TS2 2,5L", "sku": "PeatMoss_TS2_2,5L"}, {"kategori": "Media Satuan", "nama": "Perlite Eropa 1L", "sku": "Perlite_1L"}, {"kategori": "Media Satuan", "nama": "Perlite Eropa 2,5L", "sku": "Perlite_2,5L"}, {"kategori": "Media Satuan", "nama": "Perlite Eropa 5L", "sku": "Perlite_5L"}, {"kategori": "Media Satuan", "nama": "Pine Bark Besar 500g", "sku": "Pinebark_Besar_500g"}, {"kategori": "Media Satuan", "nama": "Pinebark Cacah Besar 1kg", "sku": "Pinebark_Besar_1kg"}, {"kategori": "Media Satuan", "nama": "Pinebark Cacah Besar 250g", "sku": "Pinebark_Besar_250g"}, {"kategori": "Media Satuan", "nama": "Pinebark Cacah Kecil 250g", "sku": "Pinebark_Kecil_250g"}, {"kategori": "Media Satuan", "nama": "Pinebark Cacah Kecil 500g", "sku": "Pinebark_Kecil_500g"}, {"kategori": "Media Satuan", "nama": "Pinebark Cacah Sedang 250gr", "sku": "Pinebark_Sedang_250g"}, {"kategori": "Media Satuan", "nama": "Pinebark Cacah Sedang 500g", "sku": "Pinebark_Sedang_500g"}, {"kategori": "Media Satuan", "nama": "Pinebark Cacah Super Kecil 1kg", "sku": "Pinebark_SuperKecil_1kg"}, {"kategori": "Media Satuan", "nama": "Pinebark Cacah Super Kecil 250g", "sku": "Pinebark_SuperKecil_250g"}, {"kategori": "Media Satuan", "nama": "Pinebark Cacah Super Kecil 500g", "sku": "Pinebark_SuperKecil_500g"}, {"kategori": "Media Satuan", "nama": "Pinebark Mix Cacah Kecil Sedang 250gram", "sku": "Pinebark_MixKecil_250g"}, {"kategori": "Media Satuan", "nama": "Pinebark Mix Cacah Kecil Sedang 500gram", "sku": "Pinebark_MixKecil_500g"}, {"kategori": "Media Satuan", "nama": "Plant Food - 100g", "sku": "PlantFood_SKCote_100g"}, {"kategori": "Media Satuan", "nama": "Plant Food - 50g", "sku": "PlantFood_SKcote_50g"}, {"kategori": "Media Satuan", "nama": "Plant Food Organik 450g", "sku": "PlantFood_Organik_450g"}, {"kategori": "Media Satuan", "nama": "Preserved Moss Grade A - Forest Moss - Hijau muda 2,5L", "sku": "PreservedMoss_HijauMuda_2,5L"}, {"kategori": "Media Satuan", "nama": "Preserved Moss Grade A - Forest Moss - Hijau Tua 2,5L", "sku": "PreservedMoss_HijauTua_2,5L"}, {"kategori": "Media Satuan", "nama": "Pumice 1-3mm 1 Liter", "sku": "Pumice_Uk.1-3_1L"}, {"kategori": "Media Satuan", "nama": "Pumice 1-3mm 2,5 Liter", "sku": "Pumice_Uk.1-3_2,5L"}, {"kategori": "Media Satuan", "nama": "Pumice 1-3mm 5 Liter", "sku": "Pumice_Uk.1-3_5L"}, {"kategori": "Media Satuan", "nama": "Pumice 5-7mm 1 Liter", "sku": "Pumice_Uk.5-7_1L"}, {"kategori": "Media Satuan", "nama": "Pumice 5-7mm 2,5 Liter", "sku": "Pumice_Uk.5-7_2,5L"}, {"kategori": "Media Satuan", "nama": "Pumice 5-7mm 5 Liter", "sku": "Pumice_Uk.5-7_5L"}, {"kategori": "Media Satuan", "nama": "Pupuk Guano 500g", "sku": "Pupuk_Guano_500g"}, {"kategori": "Media Satuan", "nama": "Pupuk Kompos Organik 2,5 liter", "sku": "Kompos_2,5L"}, {"kategori": "Media Satuan", "nama": "Sekam Bakar 1L", "sku": "SekamBakar_1L"}, {"kategori": "Media Satuan", "nama": "Sekam Bakar 2,5L", "sku": "SekamBakar_2,5L"}, {"kategori": "Media Satuan", "nama": "Sekam Fermen 2,5L", "sku": "SekamFermentasi_2,5L"}, {"kategori": "Media Satuan", "nama": "Sekam Fermentasi 5L", "sku": "SekamFermentasi_5L"}, {"kategori": "Media Satuan", "nama": "Sekam Sangrai 5L", "sku": "SekamSangrai_5L"}, {"kategori": "Media Satuan", "nama": "Soil Boost Powder 150ml", "sku": "SoilBoost_150ml"}, {"kategori": "Media Satuan", "nama": "Sphagnum Moss Import 100gram", "sku": "SphagnumMoss_Chile_100g"}, {"kategori": "Media Satuan", "nama": "Sphagnum Moss Import 50gram", "sku": "SphagnumMoss_Chile_50g"}, {"kategori": "Media Satuan", "nama": "Sphagnum Moss Lokal grade A 100gram", "sku": "SphagnumMoss_Lokal_A_100g"}, {"kategori": "Media Satuan", "nama": "Sphagnum Moss Lokal grade A 50gram", "sku": "SphagnumMoss_Lokal_A_50g"}, {"kategori": "Media Satuan", "nama": "Vermicompost Kascing halus 1 Liter", "sku": "Pupuk_Kascing_1L"}, {"kategori": "Media Satuan", "nama": "Vermicompost Kascing halus 2,5 Liter", "sku": "Pupuk_Kascing_2,5L"}, {"kategori": "Media Satuan", "nama": "Vermiculite Jepang 1L - Besar", "sku": "Vermiculite_Besar_1L"}, {"kategori": "Media Satuan", "nama": "Vermiculite Jepang 1L - Halus", "sku": "Vermiculite_Halus_1L"}, {"kategori": "Media Satuan", "nama": "Vermiculite Jepang 1L - Kasar", "sku": "Vermiculite_Kasar_1L"}, {"kategori": "Media Satuan", "nama": "Zeolite 1 kg", "sku": "Zeolite_1kg"}, {"kategori": "Media Mix", "nama": "Aglo Mix 10L", "sku": "AgloMix_10L"}, {"kategori": "Media Mix", "nama": "Aglo Mix 3L", "sku": "AgloMix_3L"}, {"kategori": "Media Mix", "nama": "Aglo Mix 5 L", "sku": "AgloMix_5L"}, {"kategori": "Media Mix", "nama": "Aroid Mix 10L", "sku": "AroidMix_10L"}, {"kategori": "Media Mix", "nama": "Aroid Mix 3L", "sku": "AroidMix_3L"}, {"kategori": "Media Mix", "nama": "Aroid Mix 5 L", "sku": "AroidMix_5L"}, {"kategori": "Media Mix", "nama": "Bonsai Soil Mix 3L", "sku": "BonsaiSoilMix_3L"}, {"kategori": "Media Mix", "nama": "Coco Mix 3L", "sku": "CocoMix_3L"}, {"kategori": "Media Mix", "nama": "Coco Mix 5L", "sku": "CocoMix_5L"}, {"kategori": "Media Mix", "nama": "Grow Roots 4L", "sku": "GrowRoots_4L"}, {"kategori": "Media Mix", "nama": "Indoor Soil Mix 10L", "sku": "IndoorSoilMix_10L"}, {"kategori": "Media Mix", "nama": "Indoor Soil Mix 3L", "sku": "IndoorSoilMix_3L"}, {"kategori": "Media Mix", "nama": "Indoor Soil Mix 5 L", "sku": "IndoorSoilMix_5L"}, {"kategori": "Media Mix", "nama": "Super Grain Soil Mix 1Liter", "sku": "SuperGrain_1L"}, {"kategori": "Media Mix", "nama": "Super Grain Soil Mix 2Liter", "sku": "SuperGrain_2L"}, {"kategori": "Media Mix", "nama": "Lechuza Pon 1L", "sku": "LechuzaPon_1L"}, {"kategori": "Media Mix", "nama": "Lechuza Pon 2 Liter", "sku": "LechuzaPon_2L"}, {"kategori": "Media Mix", "nama": "Orchid Soil Mix 10 Liter", "sku": "OrchidSoilMix_10L"}, {"kategori": "Media Mix", "nama": "Orchid Soil Mix 3 Liter", "sku": "OrchidSoilMix_3L"}, {"kategori": "Media Mix", "nama": "Orchid Soil Mix 5 Liter", "sku": "OrchidSoilMix_5L"}, {"kategori": "Media Mix", "nama": "Simple Mix 10L", "sku": "SimpleMix_10L"}, {"kategori": "Media Mix", "nama": "Simple Mix 3L", "sku": "SimpleMix_3L"}, {"kategori": "Media Mix", "nama": "Succulent Mix 1,5L", "sku": "SucculentMix_1,5L"}, {"kategori": "Media Mix", "nama": "Succulent Mix 3L", "sku": "SucculentMix_3L"}, {"kategori": "Media Mix", "nama": "Succulent Mix 5L", "sku": "SucculentMix_5L"}, {"kategori": "Peralatan Berkebun", "nama": "botol spray HDPE 500ml putih", "sku": "botol spray HDPE 500ml"}, {"kategori": "Peralatan Berkebun", "nama": "botol spray pet 500ml putih", "sku": "botolSpray pet 500ml"}, {"kategori": "Peralatan Berkebun", "nama": "Botol Spray Pastel Color", "sku": "BotolSprayer_Pastel_500ml"}, {"kategori": "Peralatan Berkebun", "nama": "Drip tetes irigasi biru", "sku": "Driptetes_Biru"}, {"kategori": "Peralatan Berkebun", "nama": "Drip tetes irigasi hijau", "sku": "Driptetes_Hijau"}, {"kategori": "Peralatan Berkebun", "nama": "gembor misty 5 L biru", "sku": "GemborMisty_5L_Biru"}, {"kategori": "Peralatan Berkebun", "nama": "gembor misty 5 L hijau", "sku": "GemborMisty_5L_Hijau"}, {"kategori": "Peralatan Berkebun", "nama": "Gunting pruning bonsai", "sku": "GuntingBonsai"}, {"kategori": "Peralatan Berkebun", "nama": "Gunting Tanaman Stanless Steel", "sku": "Gunting_Stainless"}, {"kategori": "Peralatan Berkebun", "nama": "gunting tanaman Stanless Steel warna biru", "sku": "Gunting_Stainless_Premium_Biru"}, {"kategori": "Peralatan Berkebun", "nama": "gunting tanaman Stanless Steel warna hijau", "sku": "Gunting_Stainless_Premium_Hijau"}, {"kategori": "Peralatan Berkebun", "nama": "Kabel Twist Tie Hijau", "sku": "Kabel_TwistTie_1roll"}, {"kategori": "Peralatan Berkebun", "nama": "kawat bonsai 2 mm (83m)", "sku": "Kawat_Bonsai_2mm_1m"}, {"kategori": "Peralatan Berkebun", "nama": "kawat bonsai 3 mm (45m)", "sku": "Kawat_Bonsai_3mm_1m"}, {"kategori": "Peralatan Berkebun", "nama": "kawat bonsai 4 mm (27m)", "sku": "Kawat_Bonsai_4mm_1m"}, {"kategori": "Peralatan Berkebun", "nama": "Keranjang Pupuk 4,5cm - Hitam (isi 5pcs)", "sku": "KeranjangPupuk_Hitam_4,5cm"}, {"kategori": "Peralatan Berkebun", "nama": "Keranjang Pupuk 5,5cm - Hitam (isi 5pcs)", "sku": "KeranjangPupuk_Hitam_5,5cm"}, {"kategori": "Peralatan Berkebun", "nama": "Klip batang tanaman orange (isi 10pcs)", "sku": "KlipBatang_10pcs"}, {"kategori": "Peralatan Berkebun", "nama": "Klip Tanaman 10pcs - Hijau", "sku": "KlipRambat_10pcs_Hijau"}, {"kategori": "Peralatan Berkebun", "nama": "Klip Tanaman 10pcs - Transparan", "sku": "KlipRambat_10pcs_Transparan"}, {"kategori": "Peralatan Berkebun", "nama": "Klip Tanaman Model Daun 10pcs", "sku": "KlipModelDaun_10Pcs"}, {"kategori": "Peralatan Berkebun", "nama": "Label Tanaman isi 10 pcs", "sku": "LabelTanaman_10pc"}, {"kategori": "Peralatan Berkebun", "nama": "Leaf Cleaning Gloves - black", "sku": "LeafGloves_Black"}, {"kategori": "Peralatan Berkebun", "nama": "Leaf Cleaning Gloves - navy", "sku": "LeafGloves_Navy"}, {"kategori": "Peralatan Berkebun", "nama": "Leaf Cleaning Gloves brown", "sku": "LeafGloves_Brown"}, {"kategori": "Peralatan Berkebun", "nama": "Leaf Cleaning Gloves dark grey", "sku": "LeafGloves_DarkGrey"}, {"kategori": "Peralatan Berkebun", "nama": "Leaf Cleaning Gloves light grey", "sku": "LeafGloves_LightGrey"}, {"kategori": "Peralatan Berkebun", "nama": "Mini Garden Tools (paket 3)", "sku": "MiniGardenTools"}, {"kategori": "Peralatan Berkebun", "nama": "Sarung Jari Pemetik Daun 21mm", "sku": "SarungJari_21mm"}, {"kategori": "Peralatan Berkebun", "nama": "Sarung Jari Pemetik Daun 24mm", "sku": "SarungJari_24mm"}, {"kategori": "Peralatan Berkebun", "nama": "sarung tangan cakar hijau", "sku": "SarungTangan_Cakar"}, {"kategori": "Peralatan Berkebun", "nama": "Sarung Tangan Latex", "sku": "SarungTangan_Latex"}, {"kategori": "Peralatan Berkebun", "nama": "Sekop Mini 4 Warna (isi 4)", "sku": "SekopMini_4Warna"}, {"kategori": "Peralatan Berkebun", "nama": "Sekop Stainless Steel Biru", "sku": "SekopStainless_Biru"}, {"kategori": "Peralatan Berkebun", "nama": "Sekop Stainless Steel Hijau", "sku": "SekopStainless_Hijau"}, {"kategori": "Peralatan Berkebun", "nama": "Sekop Stainless Steel Hitam", "sku": "SekopStainless_Hitam"}, {"kategori": "Peralatan Berkebun", "nama": "Selang Air Anti Lumut 3/4 (minimal pembelian 2 Meter) Biru", "sku": "SelangAir_3/4_Biru"}, {"kategori": "Peralatan Berkebun", "nama": "Selang Air Anti Lumut 3/4 (minimal pembelian 2 Meter) Hijau", "sku": "SelangAir_3/4_Hijau"}, {"kategori": "Peralatan Berkebun", "nama": "skop plastik nkt biru", "sku": "SekopNKT_Biru"}, {"kategori": "Peralatan Berkebun", "nama": "skop plastik nkt hijau", "sku": "SekopNKT_Hijau"}, {"kategori": "Peralatan Berkebun", "nama": "skop plastik nkt kuning", "sku": "SekopNKT_Kuning"}, {"kategori": "Peralatan Berkebun", "nama": "skop plastik nkt orange", "sku": "SekopNKT_Orange"}, {"kategori": "Peralatan Berkebun", "nama": "skop plastik nkt pink", "sku": "SekopNKT_Pink"}, {"kategori": "Peralatan Berkebun", "nama": "spray stick head abu - abu", "sku": "StickSprayer_Pump"}, {"kategori": "Peralatan Berkebun", "nama": "sprayer misty 1L", "sku": "SprayerMisty_1L"}, {"kategori": "Peralatan Berkebun", "nama": "sprayer misty 2 L", "sku": "SprayerMisty_2L"}, {"kategori": "Peralatan Berkebun", "nama": "stick sprayer misty", "sku": "Stick_SprayerMisty"}, {"kategori": "Peralatan Berkebun", "nama": "Tali Rami 4ply (1roll = 200m)", "sku": "TaliRami_5m"}, {"kategori": "Peralatan Berkebun", "nama": "Tali Serabut Kelapa 8 kg", "sku": "TaliSerabut_10m"}, {"kategori": "Peralatan Berkebun", "nama": "Tang Potong hijau 6 inch", "sku": "TangPotong_Hijau_6inch"}, {"kategori": "Peralatan Berkebun", "nama": "Tiang Penyangga Tanaman 17 cm", "sku": "PenyanggaTanaman_17cm_5pcs"}, {"kategori": "Peralatan Berkebun", "nama": "Tiang Penyangga Tanaman 27 cm", "sku": "PenyanggaTanaman_27cm_5pcs"}, {"kategori": "Peralatan Berkebun", "nama": "Tiang Penyangga Tanaman 37 cm", "sku": "PenyanggaTanaman_37cm_5pcs"}, {"kategori": "Peralatan Berkebun", "nama": "Ties Pengikat tanaman 13 cm (isi 5)", "sku": "TiesPengikat_13cm"}, {"kategori": "Peralatan Berkebun", "nama": "Ties Pengikat tanaman 17 cm (isi 5)", "sku": "TiesPengikat_17cm"}, {"kategori": "Peralatan Berkebun", "nama": "Ties Pengikat tanaman 23 cm (isi 5)", "sku": "TiesPengikat_23cm"}, {"kategori": "Peralatan Berkebun", "nama": "Turus HDPE isi cocofiber atas", "sku": "TurusHDPE_IsiCocoFiber_Atas"}, {"kategori": "Peralatan Berkebun", "nama": "Turus HDPE isi cocofiber bawah", "sku": "TurusHDPE_IsiCocoFiber_Bawah"}, {"kategori": "Peralatan Berkebun", "nama": "Turus HDPE isi moss hitam 60 cm", "sku": "TurusHDPE_IsiMossHitam_Bawah"}, {"kategori": "Peralatan Berkebun", "nama": "Turus HDPE isi moss hitam sambungan 50 cm", "sku": "TurusHDPE_IsiMossHitam_Atas"}, {"kategori": "Peralatan Berkebun", "nama": "Turus isi moss (BAWAH) 60 cm", "sku": "TurusHDPE_IsiMoss_Bawah"}, {"kategori": "Peralatan Berkebun", "nama": "Turus isi moss sambungan (ATAS) 50 cm", "sku": "TurusHDPE_IsiMoss_Atas"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Karpet Sambungan 50 cm - Atas", "sku": "TurusKarpet_Atas"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Karpet Sambungan 50 cm - Bawah", "sku": "TurusKarpet_Bawah"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Mika/Fiber 40cm Isi Moss - Bening", "sku": "TurusMika_Bening_IsiMoss"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Mika/Fiber 40cm Isi Moss - Hitam", "sku": "TurusMika_Hitam_IsiMoss"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Mika/Fiber 40cm Isi Moss - Putih", "sku": "TurusMika_Putih_IsiMoss"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Mika/Fiber 40cm Turus Saja - Bening", "sku": "TurusMika_Bening_TurusSaja"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Mika/Fiber 40cm Turus Saja - Hitam", "sku": "TurusMika_Hitam_TurusSaja"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Mika/Fiber 40cm Turus Saja - Putih", "sku": "TurusMika_Putih_TurusSaja"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Plastik HDPE 50cm", "sku": "TurusHDPE_50cm"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Rami Bulat D20cm", "sku": "TurusRami_Bulat_D20cm"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Rami Bulat Tingkat Diameter 16 cm", "sku": "TurusRami_BulatTingkat_D16cm"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Rami Hexagonal Diameter 18 cm", "sku": "TurusRami_Hexagonal_D18cm"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Rami Love Diameter 20 cm", "sku": "TurusRami_Love_D12cm"}, {"kategori": "Peralatan Berkebun", "nama": "Turus serabut 40cm diameter 3,5cm", "sku": "TurusSerabut_D3,5"}, {"kategori": "Peralatan Berkebun", "nama": "Turus serabut 40cm diameter 6cm", "sku": "TurusSerabut_D6"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Tali Rami Sambungan 50cm - Atas", "sku": "TurusTaliRami_Atas"}, {"kategori": "Peralatan Berkebun", "nama": "Turus Tali Rami Sambungan 50cm - Bawah", "sku": "TurusTaliRami_Bawah"}, {"kategori": "Peralatan Berkebun", "nama": "turus trellis acrylic bulat D20cm hijau", "sku": "TurusAkrilik_Bulat_Hijau"}, {"kategori": "Peralatan Berkebun", "nama": "turus trellis acrylic bulat D20cm hitam", "sku": "TurusAkrilik_Bulat_Hitam"}, {"kategori": "Peralatan Berkebun", "nama": "turus trellis acrylic bulat D20cm transparan", "sku": "TurusAkrilik_Bulat_Transparan"}, {"kategori": "Peralatan Berkebun", "nama": "Velcro Strap Tanaman 1m (1 roll 50mtr)", "sku": "Velcro_1m"}, {"kategori": "Pot & Dekorasi", "nama": "Batu hias black bali 7-9mm", "sku": "BatuHias_Blackbali_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu hias black lava 3-5cm", "sku": "BatuHias_BlackLava_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu Hias Import Green japan 7-9mm", "sku": "BatuHias_GreenJapan_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu Hias import red dark 7-9 mm", "sku": "BatuHias_RedDark_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu Hias Import White Agate 5-7mm", "sku": "BatuHias_WhiteAgate_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu Hias Import white italy 7-9mm", "sku": "BatuHias_WhiteItaly_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu Hias Import Yellow Agate 7-9mm", "sku": "BatuHias_YellowAgate_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu hias mix gravel 7-9mm", "sku": "BatuHias_MixGravel_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu hias pancawarna 7-9mm", "sku": "BatuHias_Pancawarna_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu Hias red gravel 7-9mm", "sku": "BatuHias_RedGravel_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Batu hias red lava 3-5cm", "sku": "BatuHias_RedLava_1kg"}, {"kategori": "Pot & Dekorasi", "nama": "Makrame Gantung - A", "sku": "Makrame_A"}, {"kategori": "Pot & Dekorasi", "nama": "Makrame Gantung - B", "sku": "Makrame_B"}, {"kategori": "Pot & Dekorasi", "nama": "Makrame Gantung - C", "sku": "Makrame_C"}, {"kategori": "Pot & Dekorasi", "nama": "Makrame Gantung - D", "sku": "Makrame_D"}, {"kategori": "Pot & Dekorasi", "nama": "Makrame Gantung - E", "sku": "Makrame_E"}, {"kategori": "Pot & Dekorasi", "nama": "Makrame Gantung - F", "sku": "Makrame_F"}, {"kategori": "Pot & Dekorasi", "nama": "Makrame Gantung - G", "sku": "Makrame_G"}, {"kategori": "Pot & Dekorasi", "nama": "Makrame Gantung - H", "sku": "Makrame_H"}, {"kategori": "Pot & Dekorasi", "nama": "moss artificial hijau muda 10gr", "sku": "MossArtificial_HijauMuda_10gr"}, {"kategori": "Pot & Dekorasi", "nama": "moss artificial hijau muda 20gr", "sku": "MossArtificial_HijauMuda_20gr"}, {"kategori": "Pot & Dekorasi", "nama": "moss artificial hijau muda 5gr", "sku": "MossArtificial_HijauMuda_5gr"}, {"kategori": "Pot & Dekorasi", "nama": "moss artificial hijau tua 10gr", "sku": "MossArtificial_HijauTua_10gr"}, {"kategori": "Pot & Dekorasi", "nama": "moss artificial hijau tua 20gr", "sku": "MossArtificial_HijauTua_20gr"}, {"kategori": "Pot & Dekorasi", "nama": "moss artificial hijau tua 5gr", "sku": "MossArtificial_HijauTua_5gr"}, {"kategori": "Pot & Dekorasi", "nama": "Papan Pakis 10x20 - sedang", "sku": "PapanPakis_Sedang"}, {"kategori": "Pot & Dekorasi", "nama": "Papan Pakis 15x25 - besar", "sku": "PapanPakis_Besar"}, {"kategori": "Pot & Dekorasi", "nama": "Papan Pakis 8x15 - kecil", "sku": "PapanPakis_Kecil"}, {"kategori": "Pot & Dekorasi", "nama": "Papan Pinus 10x20 - sedang", "sku": "PapanPinus_Sedang"}, {"kategori": "Pot & Dekorasi", "nama": "Papan Pinus 15x20 - besar", "sku": "PapanPinus_Besar"}, {"kategori": "Pot & Dekorasi", "nama": "Papan Pinus 8x15 - kecil", "sku": "PapanPinus_Kecil"}, {"kategori": "Pot & Dekorasi", "nama": "Pot + Turus Gantung - NKT 12cm", "sku": "Pot+TurusGantung_NKT12cm"}, {"kategori": "Pot & Dekorasi", "nama": "Pot + Turus Gantung - NKT 15cm", "sku": "Pot+TurusGantung_NKT15cm"}, {"kategori": "Pot & Dekorasi", "nama": "Pot + Turus Gantung - NKT 18cm", "sku": "Pot+TurusGantung_NKT18cm"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek Gantung GBL uk 12 - Hitam", "sku": "PotGantung_Anggrek_12cm_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek Gantung GBL uk 12 - putih", "sku": "PotGantung_Anggrek_12cm_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek Gantung GBL uk 15 - Hitam", "sku": "PotGantung_Anggrek_15cm_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek Gantung GBL uk 15 - putih", "sku": "PotGantung_Anggrek_15cm_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek Gantung GBL uk 16 - Hitam", "sku": "PotGantung_Anggrek_16cm_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek Gantung GBL uk 16 - putih", "sku": "PotGantung_Anggrek_16cm_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek GBL uk 17 - Hitam", "sku": "Pot_Anggrek_17cm_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek GBL uk 17 - putih", "sku": "Pot_Anggrek_17cm_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek GBL uk 20 - Hitam", "sku": "Pot_Anggrek_20cm_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Anggrek GBL uk 20 - putih", "sku": "Pot_Anggrek_20cm_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Argo 2 Hitam 25 cm", "sku": "PotArgo_Hitam_25cm"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Dinding Kerucut 16cm", "sku": "PotSerabut_Dinding_Kerucut"}, {"kategori": "Pot & Dekorasi", "nama": "Pot JIVAN - Decorative Pot D 14 (Abu-Abu) (Packing Kardus)", "sku": "PotSemen_JIVAN_D14_Abu-Abu"}, {"kategori": "Pot & Dekorasi", "nama": "Pot JIVAN - Decorative Pot D 14 (Hitam)", "sku": "PotSemen_JIVAN_D14_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot JIVAN - Decorative Pot D 14 (Marbling)", "sku": "PotSemen_JIVAN_D14_Marble"}, {"kategori": "Pot & Dekorasi", "nama": "Pot JIVAN - Decorative Pot D 14 (Putih)", "sku": "PotSemen_JIVAN_D14_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot JIVAN - Decorative Pot D 17 (Abu-Abu)", "sku": "PotSemen_JIVAN_D17_Abu-Abu"}, {"kategori": "Pot & Dekorasi", "nama": "Pot JIVAN - Decorative Pot D 17 (Hitam)", "sku": "PotSemen_JIVAN_D17_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot JIVAN - Decorative Pot D 17 (Marbling)", "sku": "PotSemen_JIVAN_D17_Marble"}, {"kategori": "Pot & Dekorasi", "nama": "Pot JIVAN - Decorative Pot D 17 (Putih)", "sku": "PotSemen_JIVAN_D17_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "pot kokedama 14cm", "sku": "pot_kokedama_14cm"}, {"kategori": "Pot & Dekorasi", "nama": "pot mini self watering 7cm Biru", "sku": "pot_selfwatering_7cm_Biru"}, {"kategori": "Pot & Dekorasi", "nama": "pot mini self watering 7cm Hijau", "sku": "pot_selfwatering_7cm_Hijau"}, {"kategori": "Pot & Dekorasi", "nama": "pot mini self watering 7cm Putih", "sku": "pot_selfwatering_7cm_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot NKT Kotak 5cm - Putih", "sku": "PotNKTKotak_5cm_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot NKT Kotak 5cm - Hitam", "sku": "PotNKTKotak_5cm_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot NKT Kotak 5cm - Merah", "sku": "PotNKTKotak_5cm_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Permata 12cm - Hitam", "sku": "PotPermata_12cm_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Permata 12cm - Putih", "sku": "PotPermata_12cm_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Permata 8cm - Hitam", "sku": "PotPermata_8cm_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Permata 8cm - Putih", "sku": "PotPermata_8cm_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Serabut Gantung Uk.17 - Ijuk Bawah", "sku": "PotSerabut_HItam_Bawah"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Serabut Gantung Uk.17 - Ijuk Tengah", "sku": "PotSerabut_HItam_Tengah"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Serabut Gantung Uk.17 - Ijuk Tepi", "sku": "PotSerabut_HItam_Tepi"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Srondol Transparan 8 cm", "sku": "PotSrondol_Transparan_8cm"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Srondol transparan Uk 12", "sku": "PotSrondol_Transparan_12cm"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Srondol transparan Uk 15", "sku": "PotSrondol_Transparan_15cm"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Srondol transparan Uk 17", "sku": "PotSrondol_Transparan_17cm"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Srondol transparan Uk 20", "sku": "PotSrondol_Transparan_20cm"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 10 - coklat", "sku": "PotYogap_Segi6_uk.10_Coklat"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 10 - kuning", "sku": "PotYogap_Segi6_uk.10_kuning"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 10 - merah", "sku": "PotYogap_Segi6_uk.10_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 10 - putih", "sku": "PotYogap_Segi6_uk.10_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 13 - coklat", "sku": "PotYogap_Segi6_uk.13_Coklat"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 13 - kuning", "sku": "PotYogap_Segi6_uk.13_Kuning"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 13 - merah", "sku": "PotYogap_Segi6_uk.13_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 13 - putih", "sku": "PotYogap_Segi6_uk.13_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 15 - coklat", "sku": "PotYogap_Segi6_uk.15_Coklat"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 15 - merah", "sku": "PotYogap_Segi6_uk.15_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "pot yogab segi 6 Uk. 15 - putih", "sku": "PotYogap_Segi6_uk.15_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.10 - Bening", "sku": "PotYogap_Lubang_uk.10_Bening"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.10 - Merah", "sku": "PotYogap_Lubang_uk.10_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.10 - Putih", "sku": "PotYogap_Lubang_uk.10_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.13 - Bening", "sku": "PotYogap_Lubang_uk.13_Bening"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.13 - Merah", "sku": "PotYogap_Lubang_uk.13_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.13 - Putih", "sku": "PotYogap_Lubang_uk.13_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.15 - Bening", "sku": "PotYogap_Lubang_uk.15_Bening"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.15 - Merah", "sku": "PotYogap_Lubang_uk.15_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.15 - Putih", "sku": "PotYogap_Lubang_uk.15_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.17 - Merah", "sku": "PotYogap_Lubang_uk.17_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.17 - Putih", "sku": "PotYogap_Lubang_uk.17_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.19 - Merah", "sku": "PotYogap_Lubang_uk.19_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.19 - Putih", "sku": "PotYogap_Lubang_uk.19_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.8 - Bening", "sku": "PotYogap_Lubang_uk.8_Bening"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.8 - merah", "sku": "PotYogap_Lubang_uk.8_Merah"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Yogap Extra Drainage Uk.8 - putih", "sku": "PotYogap_Lubang_uk.8_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Tatakan Pot GBL T10 - Hitam", "sku": "TatakanPot_GBL_T10_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Tatakan Pot GBL T10 - Putih", "sku": "TatakanPot_GBL_T10_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Tatakan Pot GBL T15 - Hitam", "sku": "TatakanPot_GBL_T15_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Tatakan Pot GBL T15 - Putih", "sku": "TatakanPot_GBL_T15_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Tatakan Pot GBL T20 - Hitam", "sku": "TatakanPot_GBL_T20_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Tatakan Pot GBL T20 - Putih", "sku": "TatakanPot_GBL_T20_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Tatakan Pot GBL T30 - Hitam", "sku": "TatakanPot_GBL_T30_Hitam"}, {"kategori": "Pot & Dekorasi", "nama": "Tatakan Pot GBL T30- Putih", "sku": "TatakanPot_GBL_T30_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "vas kaca Asscher ( gelas hi ball 415 ml )", "sku": "VasKaca_Asscher"}, {"kategori": "Pot & Dekorasi", "nama": "Vas Kaca Briolatte ( drink jar vibe 503 LGC )", "sku": "VasKaca_Briolatte"}, {"kategori": "Pot & Dekorasi", "nama": "vas kaca Carre ( gelas bucolique hb35 )", "sku": "VasKaca_Carre"}, {"kategori": "Pot & Dekorasi", "nama": "Vas Kaca Ceylon ( HGP 18541 ) (TOPLES AHK-650/ATSL)", "sku": "VasKaca_Ceylon"}, {"kategori": "Pot & Dekorasi", "nama": "Vas Kaca Emerald ( candy jar 1.6 L )", "sku": "VasKaca_Emerald"}, {"kategori": "Pot & Dekorasi", "nama": "Vas Kaca Flanders ( HGP 18444 ) (VASE VCC-2P)", "sku": "VasKaca_Flanders"}, {"kategori": "Pot & Dekorasi", "nama": "Vas Kaca HIght Radiant ( Vas Botanica 265mm 43767 PASAB )", "sku": "VasKaca_HightRadiant"}, {"kategori": "Pot & Dekorasi", "nama": "vas kaca Marquice ( kan air tempo carafe )", "sku": "VasKaca_Marquice"}, {"kategori": "Pot & Dekorasi", "nama": "Vas Kaca Mini Flanders ( HGP 18627 ) (VASE VC-CP)", "sku": "Vaskaca_MiniFlanders"}, {"kategori": "Pot & Dekorasi", "nama": "vas kaca mini Zircon ( glass canister 700 ml )", "sku": "VasKaca_MiniZircon"}, {"kategori": "Pot & Dekorasi", "nama": "Vas Kaca Pampel ( HGP 15913 ) (VASE DMJ-17)", "sku": "VasKaca_Pampel"}, {"kategori": "Pot & Dekorasi", "nama": "vas kaca Princess ( vas atlantic )", "sku": "VasKaca_Princess"}, {"kategori": "Pot & Dekorasi", "nama": "Vas Kaca Radiant ( glass canister 940ml )", "sku": "VasKaca_Radiant"}, {"kategori": "Pot & Dekorasi", "nama": "vas kaca Round ( aquarium luna a2 1.5L )", "sku": "VasKaca_Round"}, {"kategori": "Pot & Dekorasi", "nama": "vas kaca Zircon ( glass canister 1100 ml )", "sku": "VasKaca_Zircon"}, {"kategori": "Pot & Dekorasi", "nama": "Wooden Propagation Stand #1 (3 Lubang) - cream", "sku": "PropStand_Lubang3_Cream"}, {"kategori": "Pot & Dekorasi", "nama": "Wooden Propagation Stand #1 (3 Lubang) - brown", "sku": "PropStand_Lubang3_Brown"}, {"kategori": "Pot & Dekorasi", "nama": "Wooden Propagation Stand #2 (2 Lubang) - brown", "sku": "PropStand_Lubang2_Brown"}, {"kategori": "Pot & Dekorasi", "nama": "Wooden Propagation Stand #2 (2 Lubang) - cream", "sku": "PropStand_Lubang2_Cream"}, {"kategori": "Pot & Dekorasi", "nama": "Wooden Propagation wall #1 (1lubang) - brown", "sku": "PropWall_U_Brown"}, {"kategori": "Pot & Dekorasi", "nama": "Wooden Propagation wall #1 (1lubang) - cream", "sku": "PropWall_U_Cream"}, {"kategori": "Pot & Dekorasi", "nama": "Wooden Propagation wall #2 (1lubang) - brown", "sku": "PropWall_L_Brown"}, {"kategori": "Pot & Dekorasi", "nama": "Wooden Propagation wall #2 (1lubang) - cream", "sku": "PropWall_L_Cream"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Krisan", "sku": "PotKrisan_16_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Aster", "sku": "PotAster_18_Putih"}, {"kategori": "Pot & Dekorasi", "nama": "Pot Guciku", "sku": "PotGuciku_40_Putih"}];
+
+const CATS = [...new Set(SKU_DATA.map(s=>s.kategori))];
+const CAT_COLORS = {"Perawatan Tanaman": "#0d5c3a", "Media Satuan": "#1a6b5a", "Media Mix": "#1a3d72", "Peralatan Berkebun": "#7a4800", "Pot & Dekorasi": "#4a1d72"};
+let selected = new Set();
+let currentCat = 'all';
+let currentSearch = '';
+
+/* utils */
+function safeId(s){ return String(s).replace(/[^a-zA-Z0-9]/g,'_'); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+let toastTimer;
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast';
+  void el.offsetWidth; el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('on'),3000);
+}
+
+/* filter & tabs */
+function init(){
+  loadCustomSKU(); buildCatTabs(); applyFilter(); updateInfo();
+}
+function buildCatTabs(){
+  const el=document.getElementById('catTabs');
+  const all=document.createElement('button');
+  all.className='cat-tab ct-all on'; all.textContent='Semua';
+  all.onclick=()=>setCat('all'); el.appendChild(all);
+  CATS.forEach((c,i)=>{
+    const btn=document.createElement('button');
+    btn.className='cat-tab ct-'+i;
+    btn.textContent=c+' ('+SKU_DATA.filter(s=>s.kategori===c).length+')';
+    btn.onclick=()=>setCat(c); el.appendChild(btn);
+  });
+}
+function setCat(c){
+  currentCat=c;
+  document.querySelectorAll('.cat-tab').forEach(b=>b.classList.remove('on'));
+  const btn = c==='all'
+    ? document.querySelector('.ct-all')
+    : document.querySelectorAll('.cat-tab')[CATS.indexOf(c)+1];
+  if(btn) btn.classList.add('on');
+  applyFilter();
+}
+function applyFilter(){
+  const q=document.getElementById('searchBox').value.toLowerCase().trim();
+  currentSearch=q;
+  const list=SKU_DATA.filter(s=>{
+    const mc=currentCat==='all'||s.kategori===currentCat;
+    const mq=!q||s.nama.toLowerCase().includes(q)||s.sku.toLowerCase().includes(q);
+    return mc&&mq;
+  });
+  renderCards(list);
+}
+
+function renderCards(list){
+  const main=document.getElementById('mainContent');
+  if(!list.length){main.innerHTML='<div class="empty">Tidak ada SKU yang cocok.</div>';updateInfo();return;}
+  const byKat={};
+  list.forEach(s=>{if(!byKat[s.kategori])byKat[s.kategori]=[];byKat[s.kategori].push(s);});
+  main.innerHTML=Object.entries(byKat).map(([kat,skus],ki)=>{
+    const color=CAT_COLORS[kat]||'#333';
+    const cards=skus.map(s=>`
+      <div class="sku-card ${selected.has(s.sku)?'selected':''}" id="card_${safeId(s.sku)}" onclick="toggleSelect('${esc(s.sku)}')">
+        <div class="chk">${selected.has(s.sku)?'✓':''}</div>
+        <div class="card-info">
+          <div class="card-nama">${esc(s.nama)}${s._custom?'<span class="new-badge">NEW</span>':''}</div>
+          <div class="card-sku">${esc(s.sku)}</div>
+        </div>
+        <div class="card-qr-wrap" id="qr_${safeId(s.sku)}">
+          <div class="qr-lbl">QR Code</div>
+        </div>
+        <div class="card-bar-wrap" id="bar_${safeId(s.sku)}">
+          <div class="bar-lbl">Barcode</div>
+        </div>
+        <div class="card-acts">
+          <button class="card-act" onclick="event.stopPropagation();printOne('${esc(s.sku)}','${esc(s.nama)}')">🖨 Print QR</button>
+          <button class="card-act" onclick="event.stopPropagation();toggleSelect('${esc(s.sku)}')">
+            ${selected.has(s.sku)?'✓ Dipilih':'+ Pilih'}
+          </button>
+        </div>
+      </div>`).join('');
+    return `<div class="kat-section">
+      <div class="kat-head">
+        <span class="kat-badge" style="background:${color}">${kat}</span>
+        <span class="kat-count">${skus.length} SKU</span>
+      </div>
+      <div class="sku-grid">${cards}</div>
+    </div>`;
+  }).join('');
+  requestAnimationFrame(()=>{
+    list.forEach(s=>{ try{genQR(s.sku);genBar(s.sku);}catch(e){} });
+    updateInfo();
+  });
+}
+
+function genQR(sku){
+  const el=document.getElementById('qr_'+safeId(sku)); if(!el) return;
+  const old=el.querySelector('canvas, img'); if(old) return; // sudah ada
+  const div=document.createElement('div'); el.appendChild(div);
+  new QRCode(div,{text:sku,width:100,height:100,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+}
+function genBar(sku){
+  const el=document.getElementById('bar_'+safeId(sku)); if(!el) return;
+  const old=el.querySelector('svg'); if(old) return;
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'); el.appendChild(svg);
+  JsBarcode(svg,sku,{format:'CODE128',width:1.4,height:32,displayValue:false,margin:3,background:'transparent',lineColor:'#000'});
+}
+
+/* selection */
+function toggleSelect(sku){
+  if(selected.has(sku)) selected.delete(sku); else selected.add(sku);
+  const card=document.getElementById('card_'+safeId(sku));
+  if(card){
+    card.classList.toggle('selected',selected.has(sku));
+    card.querySelector('.chk').textContent=selected.has(sku)?'✓':'';
+    card.querySelector('.card-acts button:last-child').textContent=selected.has(sku)?'✓ Dipilih':'+ Pilih';
+  }
+  updatePanel();
+}
+function selectAll(){
+  const list=SKU_DATA.filter(s=>{
+    const mc=currentCat==='all'||s.kategori===currentCat;
+    const mq=!currentSearch||s.nama.toLowerCase().includes(currentSearch)||s.sku.toLowerCase().includes(currentSearch);
+    return mc&&mq;
+  });
+  list.forEach(s=>selected.add(s.sku)); applyFilter(); showToast(list.length+' SKU dipilih');
+}
+function clearSel(){selected.clear();applyFilter();updatePanel();}
+function updatePanel(){
+  const n=selected.size;
+  document.getElementById('ppCount').textContent=n;
+  document.getElementById('printPanel').classList.toggle('show',n>0);
+  document.getElementById('selCount').textContent=n>0?n+' dipilih':'';
+}
+function updateInfo(){
+  document.getElementById('totalInfo').textContent=SKU_DATA.length+' SKU · '+CATS.length+' kategori';
+  updatePanel();
+}
+
+/* modal */
+function applyPreset(){
+  const v=document.getElementById('lblPreset').value; if(!v) return;
+  const [w,h]=v.split(',').map(Number);
+  document.getElementById('lblW').value=w;
+  document.getElementById('lblH').value=h;
+}
+function openPrintModal(items){
+  window._printItems=items;
+  document.getElementById('pmDesc').textContent=items.length+' label QR siap dicetak — atur ukuran sesuai printer thermal kamu';
+  document.getElementById('printModal').classList.add('open');
+}
+function closePrintModal(){
+  document.getElementById('printModal').classList.remove('open');
+}
+function printOne(sku,nama){openPrintModal([{sku,nama}]);}
+function printSelected(){
+  if(!selected.size){showToast('Pilih minimal 1 label dulu');return;}
+  openPrintModal(SKU_DATA.filter(s=>selected.has(s.sku)));
+}
+function executePrint(){
+  const LW=parseFloat(document.getElementById('lblW').value)||40;
+  const LH=parseFloat(document.getElementById('lblH').value)||40;
+  const QTY=parseInt(document.getElementById('lblQty').value)||1;
+  const base=window._printItems||[];
+  const items=[];
+  for(let q=0;q<QTY;q++) base.forEach(s=>items.push(s));
+  closePrintModal();
+  buildPrintSheet(items,LW,LH);
+}
+
+/* PRINT — QR Code only + nama SKU */
+function buildPrintSheet(items,LW,LH){
+  LW=LW||40; LH=LH||40;
+
+  /* CSS @page dinamis */
+  let st=document.getElementById('dynPrint'); if(st) st.remove();
+  st=document.createElement('style'); st.id='dynPrint';
+  const QMM=Math.min(LW,LH)*0.68;
+  const SPT=Math.max(Math.round(Math.min(LW,LH)*0.12),5);
+  st.textContent=[
+    '@media print{',
+    '  @page{size:'+LW+'mm '+LH+'mm;margin:0}',
+    '  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box}',
+    '  body>*{display:none!important}',
+    '  .print-sheet{display:block!important;margin:0;padding:0;background:#fff}',
+    '  #psWrap{margin:0;padding:0}',
+    '  .psl{',
+    '    page-break-after:always;break-after:page;',
+    '    width:'+LW+'mm;height:'+LH+'mm;',
+    '    display:flex;flex-direction:column;',
+    '    align-items:center;justify-content:center;',
+    '    background:#fff;gap:1.8mm;padding:2mm',
+    '  }',
+    '  .psl-qr{width:'+QMM+'mm;height:'+QMM+'mm;display:block;image-rendering:pixelated}',
+    '  .psl-name{',
+    '    font-family:Arial,sans-serif;font-size:'+SPT+'pt;font-weight:700;',
+    '    text-align:center;color:#000;line-height:1.2;',
+    '    word-break:break-all;max-width:'+(LW-3)+'mm',
+    '  }',
+    '}'
+  ].join('\n');
+  document.head.appendChild(st);
+
+  /* render QR -> canvas -> PNG per SKU unik @ 300dpi */
+  const PX=11.811;
+  const qpx=Math.round(QMM*PX);
+  const qimgs={};
+
+  const uniqueSkus=[...new Set(items.map(s=>s.sku))];
+  let done=0;
+
+  function afterAll(){
+    /* build print DOM */
+    const sheet=document.getElementById('printSheet');
+    const wrap=document.createElement('div'); wrap.id='psWrap';
+    items.forEach(s=>{
+      const div=document.createElement('div'); div.className='psl';
+      const src=qimgs[s.sku];
+      div.innerHTML=(src
+        ?'<img class="psl-qr" src="'+src+'" alt="'+esc(s.sku)+'">'
+        :'<div style="font-size:7pt;color:red">QR Error</div>')
+        +'<div class="psl-name">'+esc(s.sku)+'</div>';
+      wrap.appendChild(div);
+    });
+    sheet.innerHTML=''; sheet.appendChild(wrap);
+    setTimeout(()=>window.print(),500);
+  }
+
+  uniqueSkus.forEach(sku=>{
+    const tmp=document.createElement('div');
+    tmp.style.cssText='position:absolute;left:-9999px;top:-9999px';
+    document.body.appendChild(tmp);
+    try{
+      new QRCode(tmp,{text:sku,width:qpx,height:qpx,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+      /* QRCode.js render synchronous ke canvas */
+      const qc=tmp.querySelector('canvas');
+      if(qc){
+        qimgs[sku]=qc.toDataURL('image/png',1.0);
+        document.body.removeChild(tmp);
+        done++;
+        if(done===uniqueSkus.length) afterAll();
+      } else {
+        /* fallback: tunggu img load */
+        const qi=tmp.querySelector('img');
+        if(qi){
+          const finalize=()=>{
+            const cv=document.createElement('canvas'); cv.width=qpx; cv.height=qpx;
+            const ctx=cv.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,qpx,qpx);
+            ctx.drawImage(qi,0,0,qpx,qpx);
+            qimgs[sku]=cv.toDataURL('image/png',1.0);
+            document.body.removeChild(tmp);
+            done++;
+            if(done===uniqueSkus.length) afterAll();
+          };
+          if(qi.complete) finalize(); else qi.onload=finalize;
+        } else {
+          qimgs[sku]=null; document.body.removeChild(tmp); done++;
+          if(done===uniqueSkus.length) afterAll();
+        }
+      }
+    }catch(e){
+      qimgs[sku]=null;
+      try{document.body.removeChild(tmp);}catch(_){}
+      done++;
+      if(done===uniqueSkus.length) afterAll();
+    }
+  });
+
+  if(uniqueSkus.length===0) afterAll();
+}
+
+/* ── Tambah SKU Baru ── */
+function openAddSKU(){
+  document.getElementById('newSkuNama').value='';
+  document.getElementById('newSkuKode').value='';
+  document.getElementById('newSkuUnit').value='pcs';
+  document.getElementById('addSkuModal').classList.add('open');
+  setTimeout(function(){ document.getElementById('newSkuNama').focus(); }, 100);
+}
+function closeAddSKU(){
+  document.getElementById('addSkuModal').classList.remove('open');
+}
+
+function autoFillSkuCode(){
+  var nama = document.getElementById('newSkuNama').value.trim();
+  // Auto-generate kode SKU dari nama: TitleCase, hapus spasi
+  var kode = nama
+    .split(/\s+/)
+    .map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1); })
+    .join('')
+    .replace(/[^a-zA-Z0-9_.]/g,'_')
+    .replace(/_+/g,'_')
+    .replace(/^_|_$/g,'');
+  document.getElementById('newSkuKode').value = kode;
+}
+
+function confirmAddSKU(){
+  var nama = document.getElementById('newSkuNama').value.trim();
+  var kode = document.getElementById('newSkuKode').value.trim();
+  var kat  = document.getElementById('newSkuKat').value;
+  var unit = document.getElementById('newSkuUnit').value.trim() || 'pcs';
+
+  if(!nama){ alert('Nama produk tidak boleh kosong.'); return; }
+  if(!kode){ alert('Kode SKU tidak boleh kosong.'); return; }
+
+  // Cek duplikat
+  for(var i=0;i<SKU_DATA.length;i++){
+    if(SKU_DATA[i].sku.toLowerCase()===kode.toLowerCase()){
+      alert('Kode SKU "'+kode+'" sudah ada!'); return;
+    }
+  }
+
+  // Tambah ke SKU_DATA
+  var newEntry = {kategori: kat, nama: nama, sku: kode, unit: unit};
+  SKU_DATA.push(newEntry);
+
+  // Simpan ke localStorage agar persistent
+  try{ localStorage.setItem('barcodeExtraSKU', JSON.stringify(
+    SKU_DATA.filter(function(s){ return s._custom; })
+  )); }catch(e){}
+  newEntry._custom = true;
+
+  // Tutup modal, reset filter, render ulang
+  closeAddSKU();
+  currentCat = 'all';
+  currentSearch = '';
+  document.getElementById('searchBox').value = '';
+
+  // Rebuild cat tabs karena mungkin ada kategori baru
+  document.getElementById('catTabs').innerHTML = '';
+  buildCatTabs();
+
+  applyFilter();
+  updateInfo();
+  showToast('"'+nama+'" ditambahkan — barcode siap di-print!');
+
+  // Scroll ke SKU baru
+  setTimeout(function(){
+    var id = 'card_'+safeId(kode);
+    var el = document.getElementById(id);
+    if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 400);
+}
+
+/* Load custom SKU dari localStorage saat init */
+function loadCustomSKU(){
+  try{
+    var saved = localStorage.getItem('barcodeExtraSKU');
+    if(saved){
+      var extras = JSON.parse(saved);
+      extras.forEach(function(s){
+        var exists = false;
+        for(var i=0;i<SKU_DATA.length;i++){
+          if(SKU_DATA[i].sku===s.sku){exists=true;break;}
+        }
+        if(!exists){ s._custom=true; SKU_DATA.push(s); }
+      });
+    }
+  }catch(e){}
+}
+
+
+init();
+</script>
+</body>
+</html>
