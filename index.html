@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stok Display Manager</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f2;min-height:100vh}
+input,select,button{font-family:inherit;font-size:16px}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-box{background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.10)}
+.login-logo{width:52px;height:52px;background:#0d5c3a;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.login-logo svg{width:26px;height:26px;stroke:#fff;fill:none;stroke-width:2}
+.login-box h1{font-size:20px;font-weight:700;color:#111;margin-bottom:4px}
+.login-box p{font-size:13px;color:#777;margin-bottom:22px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#555;margin-bottom:5px}
+.field input{width:100%;padding:12px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:16px;outline:none}
+.field input:focus{border-color:#0d5c3a}
+.err{color:#c0392b;font-size:13px;margin-bottom:10px;display:none;padding:8px 12px;background:#fdecea;border-radius:8px}
+.btn-login{width:100%;padding:14px;background:#0d5c3a;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
+.btn-login:active{opacity:.85}
+.sync-indicator{font-size:11px;text-align:center;margin-top:12px;color:#888}
+.app{display:none;flex-direction:column;min-height:100vh}
+.topbar{background:#0d1a12;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:8px;flex-wrap:wrap}
+.topbar h1{font-size:15px;font-weight:700}
+.topbar .sub{font-size:11px;color:rgba(255,255,255,.5)}
+.topbar-right{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tb-btn{padding:7px 11px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer}
+.btn-white{background:#fff;color:#111}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#4caf50;display:inline-block;margin-right:4px}
+.sync-dot.off{background:#f44336}
+.tabs{display:flex;overflow-x:auto;background:#fff;border-bottom:1px solid #e8e8e8;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:12px 16px;font-size:13px;font-weight:600;color:#777;border-bottom:2.5px solid transparent;white-space:nowrap;cursor:pointer}
+.tab.on{color:#0d5c3a;border-bottom-color:#0d5c3a}
+.content{padding:16px;flex:1;max-width:900px;margin:0 auto;width:100%}
+.card{background:#fff;border-radius:12px;margin-bottom:14px;overflow:hidden;border:1px solid #e8e8e8}
+.card-head{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;gap:8px}
+.card-head h2{font-size:15px;font-weight:700;color:#111}
+.card-body{padding:14px 18px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{padding:8px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;border-bottom:1px solid #f0f0f0;background:#fafafa;white-space:nowrap}
+.tbl td{padding:10px 12px;border-bottom:1px solid #f7f7f7;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700}
+.b-ok{background:#e6f4ee;color:#0d5c3a}
+.b-warn{background:#fff3e0;color:#7a4800}
+.b-low{background:#fdecea;color:#8b1a1a}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:#fff;border-radius:10px;padding:14px;border:1px solid #e8e8e8;text-align:center}
+.stat .n{font-size:22px;font-weight:700;color:#111}
+.stat .k{font-size:11px;color:#888;margin-top:2px}
+.stat.red .n{color:#c0392b}
+.banner{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.bn-ok{background:#e6f4ee;color:#0d5c3a}
+.bn-warn{background:#fff3e0;color:#7a4800}
+.cat-bar{display:flex;gap:6px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid #f0f0f0;overflow-x:auto}
+.cat-btn{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #ddd;background:#fff;color:#555;cursor:pointer;white-space:nowrap}
+.cat-btn.on{background:#0d5c3a;color:#fff;border-color:#0d5c3a}
+.btn{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer}
+.btn:active{opacity:.8}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-g{background:#0d5c3a;color:#fff}
+.btn-r{background:#8b1a1a;color:#fff}
+.btn-a{background:#7a4800;color:#fff}
+.btn-ghost{background:#f0f0f0;color:#444}
+.lf{margin-bottom:12px}
+.lf label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#555;margin-bottom:5px}
+.lf input,.lf select,.lf textarea{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:16px;outline:none}
+.lf input:focus,.lf select:focus{border-color:#0d5c3a}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.order-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f5f5f5}
+.oi-name{flex:1;font-size:13px;font-weight:600}
+.oi-qty{display:flex;align-items:center;gap:6px}
+.oi-qty button{width:28px;height:28px;border-radius:50%;border:1.5px solid #ddd;background:#fff;font-size:16px;cursor:pointer}
+.oi-qty span{font-size:14px;font-weight:700;min-width:22px;text-align:center}
+.pistol-input{width:100%;padding:12px;border:2px solid #0d5c3a;border-radius:10px;font-size:16px;margin-bottom:8px}
+.scan-result{font-size:14px;font-weight:600;min-height:22px;margin-bottom:10px;color:#0d5c3a}
+.ph-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#f9f9f9;border-radius:8px;margin-bottom:5px}
+.ph-sku{font-size:12px;font-weight:600;flex:1}
+.ph-qty{font-size:12px;font-weight:700;color:#c0392b;margin:0 8px}
+.ph-who{font-size:11px;color:#888}
+.log-item{padding:10px 18px;border-bottom:1px solid #f7f7f7}
+.log-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:3px}
+.log-ts{font-size:11px;color:#888}
+.log-who{font-size:12px;font-weight:600}
+.lt{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px}
+.lt-pick{background:#e6f4ee;color:#0d5c3a}
+.lt-order{background:#e8eff9;color:#1a3d72}
+.lt-fulfill{background:#e6f4ee;color:#0d5c3a}
+.lt-adjust{background:#fff3e0;color:#7a4800}
+.lt-add{background:#f5e6f9;color:#4a1d72}
+.log-body{font-size:12px;color:#555}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:16px}
+.overlay.on{display:flex}
+.dialog{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto}
+.dialog h3{font-size:16px;font-weight:700;margin-bottom:16px}
+.d-acts{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.toast{position:fixed;bottom:70px;right:16px;background:#111;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;opacity:0;transform:translateY(8px);transition:all .2s;z-index:999;pointer-events:none;max-width:300px}
+.toast.on{opacity:1;transform:translateY(0)}
+.empty{text-align:center;padding:40px 20px;color:#888;font-size:14px}
+.loading{text-align:center;padding:60px 20px;color:#888}
+.loading-spin{width:32px;height:32px;border:3px solid #ddd;border-top-color:#0d5c3a;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:500px){.row2{grid-template-columns:1fr}.content{padding:12px}.card-head{padding:12px 14px}.card-body{padding:12px 14px}}
+</style>
+</head>
+<body>
+
+<div id="loginWrap" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <h1>Stok Display Manager</h1>
+    <p>Masuk dengan akun kamu</p>
+    <div class="field"><label>Username</label><input id="loginName" type="text" placeholder="Username" autocomplete="off"></div>
+    <div class="field"><label>Password</label><input id="loginPass" type="password" placeholder="Password" autocomplete="off"></div>
+    <div id="loginErr" class="err"></div>
+    <button class="btn-login" onclick="doLogin()">Masuk</button>
+    <div class="sync-indicator" id="syncStatus">Menghubungkan ke server...</div>
+  </div>
+</div>
+
+<div id="appWrap" class="app">
+  <div class="topbar">
+    <div>
+      <h1>Stok Display Manager</h1>
+      <div class="sub" id="userInfo"></div>
+    </div>
+    <div class="topbar-right">
+      <span id="onlineDot"><span class="sync-dot off"></span><span style="font-size:11px;color:#aaa">Offline</span></span>
+      <button class="tb-btn btn-white" onclick="doLogout()">Keluar</button>
+    </div>
+  </div>
+  <div class="tabs" id="tabBar"></div>
+  <div class="content" id="mainContent"></div>
+</div>
+
+<div class="overlay" id="dlgAdjust">
+  <div class="dialog">
+    <h3>Adjust Stok</h3>
+    <div id="dlgAdjustInfo" class="banner bn-ok" style="margin-bottom:12px"></div>
+    <div class="lf"><label>Stok Baru</label><input type="number" id="dlgAdjustQty" min="0"></div>
+    <div class="lf"><label>Catatan</label><input type="text" id="dlgAdjustNote" placeholder="Opsional"></div>
+    <div class="d-acts">
+      <button class="btn btn-ghost" onclick="closeOverlay('dlgAdjust')">Batal</button>
+      <button class="btn btn-g" onclick="confirmAdjust()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="dlgPickConfirm">
+  <div class="dialog">
+    <h3 id="pickTitle">Konfirmasi Picking</h3>
+    <div id="pickInfo" class="banner bn-ok" style="margin-bottom:12px"></div>
+    <div class="lf"><label>Jumlah diambil</label>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+        <button class="btn btn-ghost" onclick="chgPickQty(-1)" style="width:40px;height:40px;border-radius:50%;font-size:20px">-</button>
+        <span id="pickQtyVal" style="font-size:26px;font-weight:700;min-width:36px;text-align:center">1</span>
+        <button class="btn btn-ghost" onclick="chgPickQty(1)" style="width:40px;height:40px;border-radius:50%;font-size:20px">+</button>
+      </div>
+    </div>
+    <div class="d-acts">
+      <button class="btn btn-ghost" onclick="closeOverlay('dlgPickConfirm')">Batal</button>
+      <button class="btn btn-g" onclick="confirmPick()">Catat Picking</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ======== FIREBASE CONFIG ======== */
+/* GANTI dengan config Firebase kamu */
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDUnqVev-Q4BoxLplQhRNynnvmM9877RJY",
+  authDomain: "gudang-fulfill.firebaseapp.com",
+  projectId: "gudang-fulfill",
+  storageBucket: "gudang-fulfill.firebasestorage.app",
+  messagingSenderId: "513200898711",
+  appId: "1:513200898711:web:ddc6524106224caf96dfd2",
+  measurementId: "G-GNWG5B6FP0"
+};
+
+/* ======== INIT ======== */
+var app = firebase.initializeApp(FIREBASE_CONFIG);
+var db = firebase.firestore();
+var DOC = db.collection('warehouse').doc('data');
+
+var SESSION = null;
+var DB = null;
+var activeTab = 'stok';
+var adjustTarget = null;
+var pickTarget = null;
+var pickQty = 1;
+var stokCat = 'Semua';
+var orderItems = [];
+var logFilter = {role:'',type:'',sku:''};
+var toastTimer;
+var unsubscribe = null;
+var isOnline = false;
+
+var TABS = {
+  Operasional:[{id:'stok',label:'Stok'},{id:'order',label:'Buat Order'},{id:'picking',label:'Picking'},{id:'log',label:'Histori'}],
+  Inventory:  [{id:'stok',label:'Stok'},{id:'fulfill',label:'Penuhi Order'},{id:'picking',label:'Picking'},{id:'log',label:'Histori'}],
+  Admin:      [{id:'stok',label:'Stok'},{id:'order',label:'Order'},{id:'fulfill',label:'Penuhi'},{id:'picking',label:'Picking'},{id:'manage',label:'Kelola SKU'},{id:'accounts',label:'Akun'},{id:'log',label:'Histori'}],
+  Picking:    [{id:'picking',label:'Picking'},{id:'stok',label:'Stok'},{id:'log',label:'Histori'}]
+};
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function ts(){ return new Date().toISOString(); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function fmtTs(iso){ var d=new Date(iso); return d.toLocaleDateString('id-ID')+' '+d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}); }
+
+function defaultData(){
+  return {
+    skus:[
+      {id:'s1',name:'Sprayer_Hitam_500ml',unit:'pcs',stokReal:100,stokMin:20,kategori:'Sprayer'},
+      {id:'s2',name:'Sprayer_Putih_500ml',unit:'pcs',stokReal:80,stokMin:20,kategori:'Sprayer'},
+      {id:'s3',name:'Sprayer_Hijau_750ml',unit:'pcs',stokReal:60,stokMin:15,kategori:'Sprayer'}
+    ],
+    katList:['Sprayer','Media Tanam','Perawatan Tanaman','Peralatan Berkebun','Pot & Dekorasi','Lainnya'],
+    users:[{id:'u1',name:'Admin',role:'Admin',pass:'admin123',active:true}],
+    orders:[],
+    log:[],
+    orderSeq:0
+  };
+}
+
+/* ======== FIREBASE SYNC ======== */
+function startSync(){
+  /* Real-time listener - update otomatis ke semua device */
+  unsubscribe = DOC.onSnapshot(function(doc){
+    setOnline(true);
+    if(doc.exists){
+      DB = doc.data();
+      /* Pastikan struktur ada */
+      if(!DB.users) DB.users=[{id:'u1',name:'Admin',role:'Admin',pass:'admin123',active:true}];
+      if(!DB.katList) DB.katList=['Sprayer','Media Tanam','Perawatan Tanaman','Peralatan Berkebun','Pot & Dekorasi','Lainnya'];
+      if(!DB.skus) DB.skus=[];
+      if(!DB.orders) DB.orders=[];
+      if(!DB.log) DB.log=[];
+    } else {
+      DB = defaultData();
+      saveToFirebase();
+    }
+    document.getElementById('syncStatus').textContent='Terhubung - data sinkron';
+    if(SESSION) renderPanel();
+  }, function(err){
+    setOnline(false);
+    document.getElementById('syncStatus').textContent='Offline - coba refresh';
+    /* Fallback ke localStorage */
+    if(!DB){
+      try{ var r=localStorage.getItem('sdm_v1'); DB=r?JSON.parse(r):defaultData(); }
+      catch(e){ DB=defaultData(); }
+    }
+  });
+}
+
+function saveToFirebase(){
+  if(!DB) return;
+  /* Cache lokal */
+  try{ localStorage.setItem('sdm_v1', JSON.stringify(DB)); }catch(e){}
+  /* Simpan ke Firestore - update semua device otomatis */
+  DOC.set(DB).catch(function(err){ showToast('Gagal simpan: '+err.message); });
+}
+
+function setOnline(val){
+  isOnline = val;
+  var el = document.getElementById('onlineDot');
+  if(el) el.innerHTML = val
+    ? '<span class="sync-dot"></span><span style="font-size:11px;color:#aaa">Online</span>'
+    : '<span class="sync-dot off"></span><span style="font-size:11px;color:#aaa">Offline</span>';
+}
+
+/* ======== AUTH ======== */
+function doLogin(){
+  var name=(document.getElementById('loginName').value||'').trim();
+  var pass=document.getElementById('loginPass').value||'';
+  var err=document.getElementById('loginErr');
+  if(!name||!pass){err.textContent='Username dan password wajib diisi';err.style.display='block';return;}
+  if(!DB){err.textContent='Menghubungkan ke server, tunggu sebentar...';err.style.display='block';return;}
+  var user=null;
+  for(var i=0;i<DB.users.length;i++){
+    if(DB.users[i].name.toLowerCase()===name.toLowerCase()&&DB.users[i].pass===pass&&DB.users[i].active){user=DB.users[i];break;}
+  }
+  if(!user){err.textContent='Username atau password salah';err.style.display='block';return;}
+  err.style.display='none';
+  SESSION={name:user.name,role:user.role,id:user.id};
+  document.getElementById('loginWrap').style.display='none';
+  document.getElementById('appWrap').style.display='flex';
+  document.getElementById('userInfo').textContent=user.name+' - '+user.role;
+  activeTab=TABS[user.role][0].id;
+  renderTabs(); renderPanel();
+}
+function doLogout(){
+  SESSION=null;
+  document.getElementById('appWrap').style.display='none';
+  document.getElementById('loginWrap').style.display='flex';
+  document.getElementById('loginPass').value='';
+}
+
+/* ======== TABS ======== */
+function renderTabs(){
+  var bar=document.getElementById('tabBar'); bar.innerHTML='';
+  var tabs=TABS[SESSION.role]||[];
+  for(var i=0;i<tabs.length;i++){
+    var t=tabs[i];
+    var div=document.createElement('div');
+    div.className='tab'+(t.id===activeTab?' on':'');
+    div.textContent=t.label;
+    div.setAttribute('data-id',t.id);
+    div.onclick=function(){activeTab=this.getAttribute('data-id');renderTabs();renderPanel();};
+    bar.appendChild(div);
+  }
+}
+
+/* ======== PANEL ======== */
+function renderPanel(){
+  var el=document.getElementById('mainContent');
+  if(activeTab==='stok')    el.innerHTML=renderStok();
+  else if(activeTab==='order')   el.innerHTML=renderOrder();
+  else if(activeTab==='fulfill') el.innerHTML=renderFulfill();
+  else if(activeTab==='manage')  el.innerHTML=renderManage();
+  else if(activeTab==='picking') el.innerHTML=renderPicking();
+  else if(activeTab==='log')     el.innerHTML=renderLog();
+  else if(activeTab==='accounts') renderAccounts();
+}
+
+/* ======== STOK ======== */
+function renderStok(){
+  var cats=['Semua'].concat(DB.katList||[]);
+  var list=stokCat==='Semua'?DB.skus:DB.skus.filter(function(s){return(s.kategori||'Lainnya')===stokCat;});
+  var low=list.filter(function(s){return s.stokReal<s.stokMin;}).length;
+  var isAdmin=SESSION.role==='Admin';
+  var catHtml='';
+  for(var i=0;i<cats.length;i++){
+    var c=cats[i];
+    var cnt=c==='Semua'?DB.skus.length:DB.skus.filter(function(s){return(s.kategori||'Lainnya')===c;}).length;
+    catHtml+='<button class="cat-btn'+(stokCat===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+' ('+cnt+')</button>';
+  }
+  var rows='';
+  for(var i=0;i<list.length;i++){
+    var s=list[i];
+    var lvl=s.stokReal===0?'low':s.stokReal<s.stokMin?'warn':'ok';
+    var badge=lvl==='low'?'<span class="badge b-low">Habis</span>':lvl==='warn'?'<span class="badge b-warn">Hampir habis</span>':'<span class="badge b-ok">Aman</span>';
+    var editBtn=isAdmin?'<button class="btn btn-sm btn-a" onclick="openAdjust(\''+s.id+'\')">Edit</button>':'';
+    rows+='<tr><td><div style="font-weight:600;font-size:13px">'+esc(s.name)+'</div><div style="font-size:11px;color:#888">'+esc(s.kategori||'')+'</div></td><td style="font-weight:700;font-size:15px;color:'+(lvl==='ok'?'#0d5c3a':lvl==='warn'?'#7a4800':'#c0392b')+'">'+s.stokReal+'</td><td>'+s.stokMin+'</td><td>'+badge+'</td><td>'+editBtn+'</td></tr>';
+  }
+  return '<div class="stats"><div class="stat"><div class="n">'+DB.skus.length+'</div><div class="k">Total SKU</div></div>'
+    +'<div class="stat'+(low>0?' red':'')+'"><div class="n">'+low+'</div><div class="k">Di bawah min</div></div>'
+    +'<div class="stat"><div class="n">'+DB.orders.filter(function(o){return o.status==='Pending';}).length+'</div><div class="k">Order pending</div></div></div>'
+    +'<div class="banner '+(low>0?'bn-warn':'bn-ok')+'">'+( low>0?low+' produk di bawah minimum display':'Semua produk aman')+'</div>'
+    +'<div class="card"><div class="cat-bar" id="catBar">'+catHtml+'</div>'
+    +'<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Produk</th><th>Stok</th><th>Min</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+document.addEventListener('click',function(e){
+  var btn=e.target.closest('.cat-btn');
+  if(btn){stokCat=btn.getAttribute('data-cat');renderPanel();}
+});
+
+/* ======== ORDER ======== */
+function renderOrder(){
+  var html='<div class="card"><div class="card-head"><h2>Buat Permintaan</h2></div><div class="card-body">';
+  html+='<div class="lf"><label>Cari SKU</label><input id="orderSearch" type="text" placeholder="Ketik nama produk..." oninput="searchOrder()" autocomplete="off"></div>';
+  html+='<div id="orderResults" style="margin-bottom:12px"></div>';
+  if(orderItems.length>0){
+    html+='<div style="font-weight:700;font-size:13px;margin-bottom:8px">Item dipilih:</div>';
+    for(var i=0;i<orderItems.length;i++){
+      var it=orderItems[i]; var sku=findSku(it.skuId);
+      html+='<div class="order-item"><div class="oi-name">'+esc(sku?sku.name:it.skuId)+'</div>'
+        +'<div class="oi-qty"><button onclick="chgOrderQty('+i+',-1)">-</button><span>'+it.qty+'</span><button onclick="chgOrderQty('+i+',1)">+</button></div>'
+        +'<button class="btn btn-sm btn-r" onclick="rmOrderItem('+i+')">Hapus</button></div>';
+    }
+    html+='<div class="lf" style="margin-top:12px"><label>Catatan</label><input type="text" id="orderNote" placeholder="Opsional"></div>';
+    html+='<button class="btn btn-g" onclick="submitOrder()">Kirim Permintaan</button>';
+  }
+  return html+'</div></div>';
+}
+function searchOrder(){
+  var q=(document.getElementById('orderSearch').value||'').toLowerCase().trim();
+  var el=document.getElementById('orderResults');
+  if(!q){el.innerHTML='';return;}
+  var found=DB.skus.filter(function(s){return s.name.toLowerCase().includes(q);}).slice(0,6);
+  if(!found.length){el.innerHTML='<div style="color:#888;font-size:13px">Tidak ditemukan</div>';return;}
+  var html='';
+  for(var i=0;i<found.length;i++){
+    var s=found[i];
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5">'
+      +'<div><div style="font-size:13px;font-weight:600">'+esc(s.name)+'</div><div style="font-size:11px;color:#888">Stok: '+s.stokReal+' | '+esc(s.kategori||'')+'</div></div>'
+      +'<button class="btn btn-sm btn-g" onclick="addOrderItem(\''+s.id+'\')">Tambah</button></div>';
+  }
+  el.innerHTML=html;
+}
+function addOrderItem(skuId){
+  for(var i=0;i<orderItems.length;i++) if(orderItems[i].skuId===skuId){orderItems[i].qty++;renderPanel();return;}
+  orderItems.push({skuId:skuId,qty:1}); renderPanel();
+}
+function chgOrderQty(idx,d){ orderItems[idx].qty=Math.max(1,orderItems[idx].qty+d); renderPanel(); }
+function rmOrderItem(idx){ orderItems.splice(idx,1); renderPanel(); }
+function submitOrder(){
+  if(!orderItems.length){showToast('Tambah item dulu');return;}
+  DB.orderSeq=(DB.orderSeq||0)+1;
+  var oid='ORD-'+String(DB.orderSeq).padStart(4,'0');
+  var items=orderItems.map(function(it){var sku=findSku(it.skuId);return{skuId:it.skuId,skuName:sku?sku.name:it.skuId,qty:it.qty};});
+  var note=document.getElementById('orderNote');
+  DB.orders.push({id:oid,status:'Pending',who:SESSION.name,role:SESSION.role,ts:ts(),items:items,note:note?note.value:''});
+  DB.log.unshift({id:uid(),ts:ts(),type:'order',who:SESSION.name,role:SESSION.role,orderId:oid,skuName:items.map(function(i){return i.skuName;}).join(', '),qty:items.length,note:'Order dibuat'});
+  saveToFirebase(); orderItems=[]; showToast('Order '+oid+' dikirim - Inventory akan melihat sekarang'); renderPanel();
+}
+
+/* ======== FULFILL ======== */
+function renderFulfill(){
+  var pending=DB.orders.filter(function(o){return o.status==='Pending';});
+  if(!pending.length) return '<div class="empty">Tidak ada order pending</div>';
+  var html='';
+  for(var i=0;i<pending.length;i++){
+    var o=pending[i];
+    var itemsHtml='';
+    for(var j=0;j<o.items.length;j++){
+      var it=o.items[j]; var sku=findSku(it.skuId);
+      itemsHtml+='<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid #f5f5f5"><span>'+esc(it.skuName)+'</span><span style="font-weight:700">x'+it.qty+' '+(sku?esc(sku.unit):'pcs')+'</span></div>';
+    }
+    html+='<div class="card"><div class="card-head"><h2>'+esc(o.id)+'</h2><span class="badge b-warn">Pending</span></div><div class="card-body">'
+      +'<div style="font-size:12px;color:#888;margin-bottom:8px">Dari: '+esc(o.who)+' - '+fmtTs(o.ts)+'</div>'
+      +itemsHtml+(o.note?'<div style="font-size:12px;color:#888;margin-top:6px">Catatan: '+esc(o.note)+'</div>':'')
+      +'<div style="display:flex;gap:8px;margin-top:12px">'
+      +'<button class="btn btn-g" onclick="fulfillOrder(\''+o.id+'\')">Penuhi</button>'
+      +'<button class="btn btn-r" onclick="rejectOrder(\''+o.id+'\')">Tolak</button>'
+      +'</div></div></div>';
+  }
+  return html;
+}
+function fulfillOrder(oid){
+  var o=null; for(var i=0;i<DB.orders.length;i++) if(DB.orders[i].id===oid){o=DB.orders[i];break;}
+  if(!o) return;
+  for(var j=0;j<o.items.length;j++){
+    var it=o.items[j]; var sku=findSku(it.skuId);
+    if(sku){var before=sku.stokReal;sku.stokReal=Math.max(0,before-it.qty);DB.log.unshift({id:uid(),ts:ts(),type:'fulfill',who:SESSION.name,role:SESSION.role,orderId:oid,skuId:it.skuId,skuName:it.skuName,qty:it.qty,delta:-it.qty,stokBefore:before,stokAfter:sku.stokReal});}
+  }
+  o.status='Selesai'; o.fulfilledBy=SESSION.name; o.fulfilledTs=ts();
+  saveToFirebase(); showToast('Order '+oid+' dipenuhi'); renderPanel();
+}
+function rejectOrder(oid){
+  for(var i=0;i<DB.orders.length;i++) if(DB.orders[i].id===oid){DB.orders[i].status='Ditolak';break;}
+  DB.log.unshift({id:uid(),ts:ts(),type:'fulfill',who:SESSION.name,role:SESSION.role,orderId:oid,note:'Order ditolak'});
+  saveToFirebase(); showToast('Order ditolak'); renderPanel();
+}
+
+/* ======== PICKING ======== */
+function renderPicking(){
+  var today=new Date().toDateString();
+  var picks=DB.log.filter(function(l){return l.type==='pick'&&new Date(l.ts).toDateString()===today;});
+  var sum={}; for(var i=0;i<picks.length;i++){var l=picks[i];sum[l.skuName]=(sum[l.skuName]||0)+(l.qty||0);}
+  var totalQty=picks.reduce(function(a,l){return a+(l.qty||0);},0);
+  var sumHtml=''; var sk=Object.keys(sum);
+  for(var i=0;i<sk.length;i++) sumHtml+='<div class="ph-item"><span class="ph-sku">'+esc(sk[i])+'</span><span class="ph-qty">-'+sum[sk[i]]+' pcs</span></div>';
+  var recentHtml=''; var recent=picks.slice(0,20);
+  for(var i=0;i<recent.length;i++){var l=recent[i];recentHtml+='<div class="ph-item"><span class="ph-sku">'+esc(l.skuName||'')+'</span><span class="ph-qty">-'+(l.qty||0)+'</span><span class="ph-who">'+esc(l.who)+' '+fmtTs(l.ts).split(' ')[1]+'</span></div>';}
+  return '<div class="card"><div class="card-head"><h2>Picking</h2></div><div class="card-body">'
+    +'<div style="font-size:13px;color:#888;margin-bottom:8px">Scan QR atau ketik kode SKU:</div>'
+    +'<input class="pistol-input" id="pistolInput" type="text" placeholder="Scan atau ketik SKU..." autocomplete="off" onkeydown="if(event.key===\'Enter\')handleScan()">'
+    +'<div id="scanResult" class="scan-result"></div>'
+    +'</div></div>'
+    +(totalQty>0?'<div class="card"><div class="card-head"><h2>Picking Hari Ini</h2><span style="font-weight:700;color:#c0392b">-'+totalQty+' pcs</span></div><div class="card-body">'+sumHtml+'</div></div>':'')
+    +(recent.length>0?'<div class="card"><div class="card-head"><h2>Log Terbaru</h2></div><div class="card-body">'+recentHtml+'</div></div>':'');
+}
+function handleScan(){
+  var val=(document.getElementById('pistolInput').value||'').trim(); if(!val) return;
+  var q=val.toLowerCase(); var sku=null;
+  for(var i=0;i<DB.skus.length;i++) if(DB.skus[i].name.toLowerCase()===q||DB.skus[i].name===val){sku=DB.skus[i];break;}
+  if(!sku) for(var i=0;i<DB.skus.length;i++) if(DB.skus[i].name.toLowerCase().includes(q)){sku=DB.skus[i];break;}
+  var res=document.getElementById('scanResult');
+  if(!sku){if(res)res.textContent='SKU tidak ditemukan: '+val;return;}
+  if(res) res.textContent='Ditemukan: '+sku.name+' | Stok: '+sku.stokReal+' '+sku.unit;
+  document.getElementById('pistolInput').value='';
+  openPickConfirm(sku.id);
+}
+function openPickConfirm(skuId){
+  pickTarget=findSku(skuId); if(!pickTarget) return;
+  pickQty=1;
+  document.getElementById('pickTitle').textContent='Picking: '+pickTarget.name;
+  document.getElementById('pickInfo').textContent='Stok saat ini: '+pickTarget.stokReal+' '+pickTarget.unit;
+  document.getElementById('pickQtyVal').textContent='1';
+  openOverlay('dlgPickConfirm');
+}
+function chgPickQty(d){ pickQty=Math.max(1,pickQty+d); document.getElementById('pickQtyVal').textContent=pickQty; }
+function confirmPick(){
+  if(!pickTarget) return;
+  var before=pickTarget.stokReal; pickTarget.stokReal=Math.max(0,before-pickQty);
+  DB.log.unshift({id:uid(),ts:ts(),type:'pick',who:SESSION.name,role:SESSION.role,skuId:pickTarget.id,skuName:pickTarget.name,qty:pickQty,delta:-pickQty,stokBefore:before,stokAfter:pickTarget.stokReal});
+  saveToFirebase(); closeOverlay('dlgPickConfirm'); showToast(pickTarget.name+' -'+pickQty+' pcs dicatat'); renderPanel();
+}
+
+/* ======== ADJUST ======== */
+function openAdjust(skuId){
+  adjustTarget=findSku(skuId); if(!adjustTarget) return;
+  document.getElementById('dlgAdjustInfo').textContent='Produk: '+adjustTarget.name+' | Stok sekarang: '+adjustTarget.stokReal;
+  document.getElementById('dlgAdjustQty').value=adjustTarget.stokReal;
+  document.getElementById('dlgAdjustNote').value='';
+  openOverlay('dlgAdjust');
+}
+function confirmAdjust(){
+  if(!adjustTarget) return;
+  var newVal=parseInt(document.getElementById('dlgAdjustQty').value)||0;
+  var note=document.getElementById('dlgAdjustNote').value;
+  var before=adjustTarget.stokReal; adjustTarget.stokReal=newVal;
+  DB.log.unshift({id:uid(),ts:ts(),type:'adjust',who:SESSION.name,role:SESSION.role,skuId:adjustTarget.id,skuName:adjustTarget.name,qty:newVal,delta:newVal-before,stokBefore:before,stokAfter:newVal,note:note});
+  saveToFirebase(); closeOverlay('dlgAdjust'); showToast('Stok diupdate ke '+newVal); renderPanel();
+}
+
+/* ======== MANAGE ======== */
+function renderManage(){
+  var rows='';
+  for(var i=0;i<DB.skus.length;i++){
+    var s=DB.skus[i]; var katOpts='';
+    for(var j=0;j<DB.katList.length;j++){
+      katOpts+='<option value="'+esc(DB.katList[j])+'"'+(DB.katList[j]===(s.kategori||'Lainnya')?' selected':'')+'>'+esc(DB.katList[j])+'</option>';
+    }
+    rows+='<tr>'
+      +'<td style="font-weight:600;font-size:13px">'+esc(s.name)+'</td>'
+      +'<td><select onchange="setSkuKat(\''+s.id+'\',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid #ddd;border-radius:6px">'+katOpts+'</select></td>'
+      +'<td><input type="number" value="'+s.stokReal+'" min="0" onchange="setSkuStok(\''+s.id+'\',this.value)" style="width:65px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px"></td>'
+      +'<td><input type="number" value="'+s.stokMin+'" min="0" onchange="setSkuMin(\''+s.id+'\',this.value)" style="width:65px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px"></td>'
+      +'<td><button class="btn btn-sm btn-r" onclick="delSku(\''+s.id+'\')">Hapus</button></td></tr>';
+  }
+  return '<div class="card"><div class="card-head" style="flex-wrap:wrap;gap:8px"><h2>Kelola SKU</h2>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button class="btn btn-sm btn-ghost" onclick="exportSkuCsv()">Export CSV</button>'
+    +'<button class="btn btn-sm btn-g" onclick="openAddSku()">+ Tambah SKU</button>'
+    +'</div></div>'
+    +'<div id="importDrop" style="margin:12px 18px;border:2px dashed #ccc;border-radius:10px;padding:18px;text-align:center;cursor:pointer" onclick="triggerImport()" ondragover="event.preventDefault();this.style.borderColor=\'#0d5c3a\'" ondragleave="this.style.borderColor=\'#ccc\'" ondrop="handleDrop(event)">'
+    +'<div style="font-size:24px;margin-bottom:4px">+</div>'
+    +'<div style="font-size:13px;font-weight:600;color:#444">Drag & drop Excel/CSV di sini</div>'
+    +'<div style="font-size:11px;color:#888;margin-top:3px">Nama file = kategori otomatis. Kolom: SKU, STOK</div>'
+    +'</div>'
+    +'<input type="file" id="importFile" accept=".csv,.xlsx,.xls" hidden onchange="handleImportFile(event)">'
+    +'<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Nama SKU</th><th>Kategori</th><th>Stok Real</th><th>Min</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+function setSkuKat(id,v){ var s=findSku(id); if(s){s.kategori=v;saveToFirebase();} }
+function setSkuStok(id,v){ var s=findSku(id); if(s){var b=s.stokReal;s.stokReal=parseInt(v)||0;DB.log.unshift({id:uid(),ts:ts(),type:'adjust',who:SESSION.name,role:SESSION.role,skuId:id,skuName:s.name,qty:s.stokReal,delta:s.stokReal-b,stokBefore:b,stokAfter:s.stokReal,note:'Edit manual'});saveToFirebase();showToast('Stok diupdate');} }
+function setSkuMin(id,v){ var s=findSku(id); if(s){s.stokMin=parseInt(v)||0;saveToFirebase();} }
+function delSku(id){
+  if(!confirm('Hapus SKU ini?')) return;
+  DB.skus=DB.skus.filter(function(s){return s.id!==id;}); saveToFirebase(); renderPanel();
+}
+function openAddSku(){
+  var d=mkOverlay('dlgAddSku');
+  var box=d.querySelector('.dialog');
+  box.innerHTML='<h3>Tambah SKU</h3>';
+  box.appendChild(mkField('Nama SKU','aSkuName','text','contoh: AgloNutrients_250ml'));
+  var r2=document.createElement('div'); r2.className='row2';
+  r2.appendChild(mkField('Stok Awal','aSkuStok','number','0'));
+  r2.appendChild(mkField('Min Display','aSkuMin','number','0'));
+  box.appendChild(r2);
+  var r3=document.createElement('div'); r3.className='row2';
+  r3.appendChild(mkField('Satuan','aSkuUnit','text','pcs'));
+  var katWrap=document.createElement('div'); katWrap.className='lf';
+  var katLbl=document.createElement('label'); katLbl.textContent='Kategori';
+  var katSel=document.createElement('select'); katSel.id='aSkuKat';
+  katSel.style.cssText='width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:16px';
+  DB.katList.forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;katSel.appendChild(o);});
+  katWrap.appendChild(katLbl); katWrap.appendChild(katSel);
+  r3.appendChild(katWrap); box.appendChild(r3);
+  var acts=document.createElement('div'); acts.className='d-acts';
+  var bc=mkBtn('Batal','btn-ghost',function(){closeOverlay('dlgAddSku');});
+  var bs=mkBtn('Simpan','btn-g',confirmAddSku);
+  acts.appendChild(bc); acts.appendChild(bs); box.appendChild(acts);
+  setTimeout(function(){var el=document.getElementById('aSkuName');if(el)el.focus();},100);
+}
+function confirmAddSku(){
+  var name=(document.getElementById('aSkuName').value||'').trim();
+  if(!name){showToast('Nama tidak boleh kosong');return;}
+  var stok=parseInt(document.getElementById('aSkuStok').value)||0;
+  var min=parseInt(document.getElementById('aSkuMin').value)||0;
+  var unit=(document.getElementById('aSkuUnit').value||'pcs').trim();
+  var kat=document.getElementById('aSkuKat').value||'Lainnya';
+  var newId=uid();
+  DB.skus.push({id:newId,name:name,unit:unit,stokReal:stok,stokMin:min,kategori:kat});
+  DB.log.unshift({id:uid(),ts:ts(),type:'add',who:SESSION.name,role:SESSION.role,skuId:newId,skuName:name,qty:stok,note:'Tambah manual'});
+  saveToFirebase(); closeOverlay('dlgAddSku'); showToast(name+' ditambahkan'); renderPanel();
+}
+function triggerImport(){ document.getElementById('importFile').click(); }
+function handleDrop(e){ e.preventDefault(); document.getElementById('importDrop').style.borderColor='#ccc'; var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f)processImportFile(f); }
+function handleImportFile(e){ var f=e.target.files&&e.target.files[0]; if(f)processImportFile(f); e.target.value=''; }
+function processImportFile(file){
+  var rawCat=file.name.replace(/\.[^.]+$/,'').replace(/^SKU[_\s-]*/i,'').replace(/_/g,' ').trim();
+  var autoKat=rawCat.split(' ').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();}).join(' ')||'Lainnya';
+  var ext=file.name.split('.').pop().toLowerCase(); var reader=new FileReader();
+  if(ext==='xlsx'||ext==='xls'){
+    if(typeof XLSX==='undefined'){showToast('Library Excel belum siap, coba lagi');return;}
+    reader.onload=function(ev){try{var wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});importRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',blankrows:false}),autoKat);}catch(e){showToast('Error baca Excel: '+e.message);}};
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.onload=function(ev){
+      var text=ev.target.result.replace(/^\uFEFF/,'');
+      var rows=text.split(/\r?\n/).filter(function(l){return l.trim();}).map(function(l){var r=[],c='',iq=false;for(var i=0;i<l.length;i++){if(l[i]==='"')iq=!iq;else if(l[i]===','&&!iq){r.push(c.trim());c='';}else c+=l[i];}r.push(c.trim());return r;});
+      importRows(rows,autoKat);
+    };
+    reader.readAsText(file,'UTF-8');
+  }
+}
+function importRows(rows,autoKat){
+  if(!rows||rows.length<2){showToast('File kosong');return;}
+  var h=rows[0].map(function(x){return String(x).toLowerCase();});
+  function fc(kws){for(var i=0;i<h.length;i++)for(var j=0;j<kws.length;j++)if(h[i].indexOf(kws[j])>=0)return i;return -1;}
+  var iN=fc(['nama','sku','name']),iS=fc(['stok','stock','qty']),iM=fc(['min']),iU=fc(['satuan','unit']),iK=fc(['kategori','cat']);
+  if(iN<0){showToast('Kolom nama/SKU tidak ditemukan');return;}
+  if(!DB.katList)DB.katList=['Sprayer','Lainnya'];
+  var added=0,updated=0;
+  for(var i=1;i<rows.length;i++){
+    var r=rows[i]; if(!r||!r.length) continue;
+    var name=String(r[iN]||'').trim().replace(/^"|"$/g,'');
+    if(!name||name.charAt(0)==='#') continue;
+    var kat=iK>=0&&r[iK]?String(r[iK]).trim()||autoKat:autoKat;
+    if(DB.katList.indexOf(kat)<0)DB.katList.push(kat);
+    var stok=iS>=0?parseInt(r[iS])||0:0, min=iM>=0?parseInt(r[iM])||0:0;
+    var unit=iU>=0&&r[iU]?String(r[iU]).trim()||'pcs':'pcs';
+    var ex=null; for(var k=0;k<DB.skus.length;k++) if(DB.skus[k].name.toLowerCase()===name.toLowerCase()){ex=DB.skus[k];break;}
+    if(ex){ex.stokReal=stok;ex.stokMin=min||ex.stokMin;ex.kategori=kat;updated++;}
+    else{DB.skus.push({id:uid(),name:name,unit:unit,stokReal:stok,stokMin:min,kategori:kat});added++;}
+  }
+  saveToFirebase(); showToast(added+' ditambahkan, '+updated+' diupdate - kategori: '+autoKat); renderPanel();
+}
+function exportSkuCsv(){
+  var csv='Nama SKU,Stok Real,Min Display,Satuan,Kategori\n';
+  for(var i=0;i<DB.skus.length;i++){var s=DB.skus[i];csv+='"'+(s.name||'').replace(/"/g,'""')+'",'+s.stokReal+','+s.stokMin+','+(s.unit||'pcs')+','+(s.kategori||'Lainnya')+'\n';}
+  var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv); a.download='SKU_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+}
+
+/* ======== ACCOUNTS ======== */
+function renderAccounts(){
+  var el=document.getElementById('mainContent');
+  if(SESSION.role!=='Admin'){el.innerHTML='<div class="empty">Hanya Admin</div>';return;}
+  var wrap=document.createElement('div');
+  var card=document.createElement('div'); card.className='card';
+  var head=document.createElement('div'); head.className='card-head';
+  var h2=document.createElement('h2'); h2.textContent='Kelola Akun Tim';
+  var ab=mkBtn('+ Tambah Akun','btn-g btn-sm',openAddUser);
+  head.appendChild(h2); head.appendChild(ab); card.appendChild(head);
+  var info=document.createElement('div'); info.className='banner bn-ok'; info.style.margin='10px 18px 0';
+  info.textContent='Akun tersimpan di server - berlaku di semua device.'; card.appendChild(info);
+  var tw=document.createElement('div'); tw.style.overflowX='auto';
+  var tbl=document.createElement('table'); tbl.className='tbl';
+  var th=document.createElement('thead'); var hr=document.createElement('tr');
+  ['Username','Role','Password','Status',''].forEach(function(t){var th2=document.createElement('th');th2.textContent=t;hr.appendChild(th2);}); th.appendChild(hr); tbl.appendChild(th);
+  var tb=document.createElement('tbody');
+  var rc={Admin:'#8b1a1a',Operasional:'#0d5c3a',Inventory:'#1a3d72',Picking:'#7a4800'};
+  for(var i=0;i<DB.users.length;i++){
+    var u=DB.users[i]; var tr=document.createElement('tr');
+    var tn=document.createElement('td'); tn.style.fontWeight='600'; tn.textContent=u.name; tr.appendChild(tn);
+    var tr2=document.createElement('td'); var badge=document.createElement('span'); badge.className='badge'; badge.style.cssText='background:'+(rc[u.role]||'#555')+';color:#fff;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700'; badge.textContent=u.role; tr2.appendChild(badge); tr.appendChild(tr2);
+    var tp=document.createElement('td'); tp.style.cssText='font-family:monospace;color:#666;font-size:13px'; tp.textContent=u.pass; tr.appendChild(tp);
+    var ts2=document.createElement('td'); var dot=document.createElement('span'); dot.style.color=u.active?'#0d5c3a':'#c0392b'; dot.textContent='* '; ts2.appendChild(dot); ts2.appendChild(document.createTextNode(u.active?'Aktif':'Nonaktif')); tr.appendChild(ts2);
+    var ta=document.createElement('td'); ta.style.padding='8px 12px'; ta.style.display='flex'; ta.style.gap='6px';
+    if(u.id!=='u1'){
+      var eb=mkBtn('Edit','btn-sm btn-a',function(uid){return function(){openEditUser(uid);};}(u.id)); ta.appendChild(eb);
+      var tb2=mkBtn(u.active?'Nonaktifkan':'Aktifkan','btn-sm '+(u.active?'btn-r':'btn-ghost'),function(uid){return function(){toggleUserActive(uid);};}(u.id)); ta.appendChild(tb2);
+    }
+    tr.appendChild(ta); tb.appendChild(tr);
+  }
+  tbl.appendChild(tb); tw.appendChild(tbl); card.appendChild(tw); wrap.appendChild(card);
+  el.innerHTML=''; el.appendChild(wrap);
+}
+function openAddUser(){
+  var d=mkOverlay('dlgAddUser'); var box=d.querySelector('.dialog');
+  box.innerHTML='<h3>Tambah Akun Baru</h3>';
+  box.appendChild(mkField('Username','auName','text','contoh: Budi'));
+  box.appendChild(mkField('Password','auPass','text','minimal 4 karakter'));
+  var rw=document.createElement('div'); rw.className='lf';
+  var rl=document.createElement('label'); rl.textContent='Role';
+  var rs=document.createElement('select'); rs.id='auRole'; rs.style.cssText='width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:16px';
+  ['Operasional','Inventory','Picking','Admin'].forEach(function(r){var o=document.createElement('option');o.value=r;o.textContent=r;rs.appendChild(o);});
+  rw.appendChild(rl); rw.appendChild(rs); box.appendChild(rw);
+  var acts=document.createElement('div'); acts.className='d-acts';
+  acts.appendChild(mkBtn('Batal','btn-ghost',function(){closeOverlay('dlgAddUser');}));
+  acts.appendChild(mkBtn('Simpan','btn-g',confirmAddUser));
+  box.appendChild(acts);
+  setTimeout(function(){var el=document.getElementById('auName');if(el)el.focus();},100);
+}
+function confirmAddUser(){
+  var name=(document.getElementById('auName').value||'').trim();
+  var pass=(document.getElementById('auPass').value||'').trim();
+  var role=document.getElementById('auRole').value;
+  if(!name){showToast('Username tidak boleh kosong');return;}
+  if(pass.length<4){showToast('Password minimal 4 karakter');return;}
+  for(var i=0;i<DB.users.length;i++) if(DB.users[i].name.toLowerCase()===name.toLowerCase()){showToast('Username sudah ada');return;}
+  DB.users.push({id:uid(),name:name,role:role,pass:pass,active:true});
+  saveToFirebase(); closeOverlay('dlgAddUser'); showToast('Akun '+name+' dibuat - langsung bisa login di HP lain'); renderAccounts();
+}
+function openEditUser(userId){
+  var user=null; for(var i=0;i<DB.users.length;i++) if(DB.users[i].id===userId){user=DB.users[i];break;}
+  if(!user) return;
+  var d=mkOverlay('dlgEditUser'); var box=d.querySelector('.dialog');
+  box.innerHTML='<h3>Edit: '+user.name+'</h3>';
+  box.appendChild(mkField('Password Baru','euPass','text','Kosongkan jika tidak diubah'));
+  setTimeout(function(){var el=document.getElementById('euPass');if(el)el.value=user.pass;},50);
+  var rw=document.createElement('div'); rw.className='lf';
+  var rl=document.createElement('label'); rl.textContent='Role';
+  var rs=document.createElement('select'); rs.id='euRole'; rs.style.cssText='width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:16px';
+  ['Operasional','Inventory','Picking','Admin'].forEach(function(r){var o=document.createElement('option');o.value=r;o.textContent=r;if(r===user.role)o.selected=true;rs.appendChild(o);});
+  rw.appendChild(rl); rw.appendChild(rs); box.appendChild(rw);
+  var hi=document.createElement('input'); hi.type='hidden'; hi.id='euId'; hi.value=userId; box.appendChild(hi);
+  var acts=document.createElement('div'); acts.className='d-acts';
+  acts.appendChild(mkBtn('Batal','btn-ghost',function(){closeOverlay('dlgEditUser');}));
+  acts.appendChild(mkBtn('Simpan','btn-g',confirmEditUser));
+  box.appendChild(acts);
+}
+function confirmEditUser(){
+  var userId=(document.getElementById('euId').value||'');
+  var pass=(document.getElementById('euPass').value||'').trim();
+  var role=document.getElementById('euRole').value;
+  if(pass&&pass.length<4){showToast('Password minimal 4 karakter');return;}
+  for(var i=0;i<DB.users.length;i++) if(DB.users[i].id===userId){if(pass)DB.users[i].pass=pass;DB.users[i].role=role;break;}
+  saveToFirebase(); closeOverlay('dlgEditUser'); showToast('Akun diupdate'); renderAccounts();
+}
+function toggleUserActive(userId){
+  for(var i=0;i<DB.users.length;i++) if(DB.users[i].id===userId){DB.users[i].active=!DB.users[i].active;showToast(DB.users[i].active?'Akun diaktifkan':'Akun dinonaktifkan');break;}
+  saveToFirebase(); renderAccounts();
+}
+
+/* ======== LOG ======== */
+function renderLog(){
+  var tlabel={order:'Order',fulfill:'Dipenuhi',adjust:'Adjust',add:'Tambah SKU',pick:'Picking'};
+  var tcls={order:'lt-order',fulfill:'lt-fulfill',adjust:'lt-adjust',add:'lt-add',pick:'lt-pick'};
+  var logs=DB.log.filter(function(l){
+    if(logFilter.role&&l.role!==logFilter.role)return false;
+    if(logFilter.type&&l.type!==logFilter.type)return false;
+    if(logFilter.sku&&!(l.skuName||'').toLowerCase().includes(logFilter.sku.toLowerCase()))return false;
+    return true;
+  });
+  var today=new Date().toDateString();
+  var tp=DB.log.filter(function(l){return l.type==='pick'&&new Date(l.ts).toDateString()===today;});
+  var tq=tp.reduce(function(a,l){return a+(l.qty||0);},0);
+  var ps={}; for(var i=0;i<tp.length;i++){var l=tp[i];ps[l.skuName]=(ps[l.skuName]||0)+(l.qty||0);}
+  var sh=''; var sk=Object.keys(ps);
+  for(var i=0;i<sk.length;i++) sh+='<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px"><span>'+esc(sk[i])+'</span><span style="font-weight:700;color:#c0392b">-'+ps[sk[i]]+' pcs</span></div>';
+  var html='';
+  if(tq>0) html+='<div class="card" style="margin-bottom:12px"><div class="card-head"><h2>Picking Hari Ini</h2><span style="font-weight:700;color:#c0392b">-'+tq+' pcs</span></div><div class="card-body">'+sh+'<button class="btn btn-sm btn-ghost" onclick="exportLogCsv()" style="margin-top:10px">Export CSV</button></div></div>';
+  html+='<div class="card"><div class="card-head" style="flex-wrap:wrap;gap:8px"><h2>Histori</h2><button class="btn btn-sm btn-ghost" onclick="exportLogCsv()">Export CSV</button></div>'
+    +'<div style="padding:8px 18px;border-bottom:1px solid #f0f0f0;display:flex;gap:8px;flex-wrap:wrap">'
+    +'<select style="font-size:13px;padding:5px 8px;border:1px solid #ddd;border-radius:6px" onchange="logFilter.role=this.value;renderPanel()"><option value="">Semua role</option><option>Operasional</option><option>Inventory</option><option>Admin</option><option>Picking</option></select>'
+    +'<select style="font-size:13px;padding:5px 8px;border:1px solid #ddd;border-radius:6px" onchange="logFilter.type=this.value;renderPanel()"><option value="">Semua tipe</option><option value="order">Order</option><option value="fulfill">Dipenuhi</option><option value="adjust">Adjust</option><option value="pick">Picking</option></select>'
+    +'<button class="btn btn-sm btn-ghost" onclick="logFilter={role:\'\',type:\'\',sku:\'\'};renderPanel()">Reset</button></div>'
+    +'<div>'+(logs.length?logs.slice(0,80).map(function(l){
+      var d=l.delta!=null?(l.delta>0?'<span style="color:#0d5c3a">+'+l.delta+'</span>':'<span style="color:#c0392b">'+l.delta+'</span>'):'';
+      return '<div class="log-item"><div class="log-head"><span class="log-ts">'+fmtTs(l.ts)+'</span><span class="lt '+(tcls[l.type]||'lt-order')+'">'+(tlabel[l.type]||l.type)+'</span><span class="log-who">'+esc(l.who)+'</span></div>'
+        +'<div class="log-body">'+esc(l.skuName||'')+(l.qty?' x'+l.qty:'')+(d?' '+d:'')+(l.note?' - '+esc(l.note):'')+'</div></div>';
+    }).join(''):'<div class="empty">Belum ada histori</div>')+'</div></div>';
+  return html;
+}
+function exportLogCsv(){
+  var csv='Waktu,Tipe,Nama,Role,SKU,Qty,Delta,Catatan\n';
+  for(var i=0;i<DB.log.length;i++){var l=DB.log[i];csv+=[fmtTs(l.ts),l.type,l.who,l.role,l.skuName||'',l.qty||'',l.delta||'',l.note||''].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',')+'\n';}
+  var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv); a.download='Log_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+}
+
+/* ======== HELPERS ======== */
+function findSku(id){ for(var i=0;i<DB.skus.length;i++) if(DB.skus[i].id===id) return DB.skus[i]; return null; }
+function openOverlay(id){ var el=document.getElementById(id); if(el)el.classList.add('on'); }
+function closeOverlay(id){ var el=document.getElementById(id); if(el){el.classList.remove('on');if(id!=='dlgAdjust'&&id!=='dlgPickConfirm')el.remove();} }
+function showToast(msg){ var el=document.getElementById('toast'); el.textContent=msg; el.classList.add('on'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){el.classList.remove('on');},3000); }
+function mkOverlay(id){
+  var old=document.getElementById(id); if(old)old.remove();
+  var d=document.createElement('div'); d.className='overlay on'; d.id=id;
+  d.onclick=function(e){if(e.target===d)closeOverlay(id);};
+  var box=document.createElement('div'); box.className='dialog';
+  d.appendChild(box); document.body.appendChild(d); return d;
+}
+function mkField(labelText,inputId,inputType,placeholder){
+  var w=document.createElement('div'); w.className='lf';
+  var l=document.createElement('label'); l.textContent=labelText;
+  var inp=document.createElement('input'); inp.type=inputType; inp.id=inputId; inp.placeholder=placeholder; inp.autocomplete='off';
+  w.appendChild(l); w.appendChild(inp); return w;
+}
+function mkBtn(text,cls,handler){
+  var b=document.createElement('button'); b.className='btn '+cls; b.textContent=text; b.onclick=handler; return b;
+}
+
+/* ======== INIT ======== */
+document.getElementById('loginPass').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+document.getElementById('loginName').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('loginPass').focus();});
+
+/* Load SheetJS for Excel */
+var xlsxScript=document.createElement('script');
+xlsxScript.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+document.head.appendChild(xlsxScript);
+
+/* Start Firebase sync */
+startSync();
+</script>
+</body>
+</html>
